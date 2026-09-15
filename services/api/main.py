@@ -6,6 +6,7 @@ Starts the Uvicorn ASGI server with the application instance.
 from __future__ import annotations
 
 import uvicorn
+
 from services.api.app import create_app
 from services.api.config import get_settings
 

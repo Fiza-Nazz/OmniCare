@@ -10,7 +10,6 @@ Validates the repository against Constitution requirements:
 from __future__ import annotations
 
 import ast
-import os
 import re
 import sys
 from pathlib import Path
@@ -41,7 +40,16 @@ def check_secrets_and_phi(root_dir: Path) -> list[str]:
             continue
 
         # Skip binary files
-        if path.suffix in {".png", ".jpg", ".jpeg", ".ico", ".woff", ".woff2", ".pdf", ".pyc"}:
+        if path.suffix in {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".ico",
+            ".woff",
+            ".woff2",
+            ".pdf",
+            ".pyc",
+        }:
             continue
 
         try:
