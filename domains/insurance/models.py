@@ -5,7 +5,7 @@ Adheres to Constitution §18 (Insurance Verification & Claims) and §32 (Databas
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Enum as SQLEnum, Index, String
+from sqlalchemy import Boolean, Enum as SQLEnum, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domains.insurance.enums import PayerType
@@ -29,5 +29,3 @@ class InsurancePayer(TimestampedUUIDModel):
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     claims_portal_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    __table_args__ = (Index("ix_insurance_payers_name", "name"),)
