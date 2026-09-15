@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse, Response
 logger = logging.getLogger("omnicare.errors")
 
 
-class OmniCareException(Exception):
+class OmniCareError(Exception):
     """Base exception for OmniCare application errors."""
 
     def __init__(
@@ -31,7 +31,10 @@ class OmniCareException(Exception):
         super().__init__(detail)
 
 
-class ResourceNotFoundError(OmniCareException):
+OmniCareException = OmniCareError
+
+
+class ResourceNotFoundError(OmniCareError):
     """Raised when a requested resource does not exist."""
 
     def __init__(self, resource: str, identifier: str) -> None:
