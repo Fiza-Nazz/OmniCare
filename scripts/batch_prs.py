@@ -41,61 +41,6 @@ def run(cmd: str, cwd: str = str(ROOT)) -> tuple[int, str]:
 # ---------------------------------------------------------------------------
 
 PR_CATALOG: list[dict] = [
-    # ── PR 18: Patient Emergency Contact ────────────────────────────────────
-    {
-        "branch": "feat/patient-emergency-contact-model",
-        "commit": "feat(patients): extract EmergencyContact into dedicated model with priority ranking",
-        "title": "feat(patients): extract EmergencyContact into dedicated model with priority ranking",
-        "file": "domains/patients/emergency_contact.py",
-        "content": '''\
-"""Patient Emergency Contact domain model.
-
-Provides a dedicated table for multiple emergency contacts per patient,
-with priority ranking to indicate primary contact.
-
-Adheres to Constitution §9 (Patient Identity) and §32 (Database Rules).
-"""
-from __future__ import annotations
-
-import uuid
-
-from sqlalchemy import ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class PatientEmergencyContact(TimestampedUUIDModel):
-    """Stores one emergency contact entry for a patient."""
-
-    __tablename__ = "patient_emergency_contacts"
-
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    full_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    relationship: Mapped[str] = mapped_column(String(80), nullable=False)
-    phone_primary: Mapped[str] = mapped_column(String(20), nullable=False)
-    phone_secondary: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    priority: Mapped[int] = mapped_column(
-        Integer,
-        default=1,
-        nullable=False,
-        doc="Contact priority: 1 = primary, 2 = secondary, etc.",
-    )
-    notes: Mapped[str | None] = mapped_column(String(300), nullable=True)
-
-    __table_args__ = (
-        Index("ix_patient_emergency_contacts_patient", "patient_id", "priority"),
-    )
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nExtracts emergency contact into a dedicated model supporting multiple contacts with priority ranking.\\n\\n## Why\\nConstitution §9 (Patient Identity) — patients may have more than one emergency contact.\\n\\n## Testing\\nModel fields and composite index reviewed.",
-    },
     # ── PR 19: Patient Disability Record ────────────────────────────────────
     {
         "branch": "feat/patient-disability-record-model",
@@ -645,7 +590,7 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="OmniCare batch PR creator v2")
-    parser.add_argument("--start", type=int, default=18, help="Starting PR number label")
+    parser.add_argument("--start", type=int, default=19, help="Starting PR number label")
     parser.add_argument("--count", type=int, default=len(PR_CATALOG))
     args = parser.parse_args()
 
