@@ -1,0 +1,49 @@
+# ==============================================================================
+# OmniCare — Ruff Linter & Formatter Configuration
+# Adheres to OmniCare Constitution §4 (Quality), §5 (Tech Baseline), §65 (CI/CD)
+# ==============================================================================
+
+target-version = "py311"
+line-length = 88
+indent-width = 4
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade (modern Python 3.11 idioms)
+    "B",     # flake8-bugbear (common bug patterns)
+    "A",     # flake8-builtins (shadowing builtins)
+    "C4",    # flake8-comprehensions
+    "T20",   # flake8-print (disallow raw print statements in production services)
+    "SIM",   # flake8-simplify
+    "PTH",   # flake8-use-pathlib
+    "S",     # flake8-bandit (security & cryptographic checks)
+    "RET",   # flake8-return
+    "RUF",   # Ruff-specific rules
+]
+
+ignore = [
+    "S101",  # Allow assert in test files (handled in per-file-ignores)
+    "B008",  # Allow Depends() in FastAPI function arguments
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]  # Allow assert and synthetic test credentials in test suite
+"scripts/**" = ["T201"]                # Allow print in CLI utility scripts
+
+[lint.isort]
+known-first-party = ["services", "domains", "packages"]
+combine-as-imports = true
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
