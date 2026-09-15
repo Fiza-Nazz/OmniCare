@@ -3,6 +3,7 @@
 Adheres to Constitution §8 (Identity & Access Management) and §29 (Authentication Security).
 """
 
+from domains.identity.dependencies import get_current_user, require_roles
 from domains.identity.models import User, UserRole, UserStatus
 from domains.identity.security import hash_password, verify_password
 from domains.identity.tokens import (
@@ -24,6 +25,8 @@ __all__ = [
     "create_access_token",
     "create_refresh_token",
     "decode_jwt_token",
+    "get_current_user",
     "hash_password",
+    "require_roles",
     "verify_password",
 ]
