@@ -7,13 +7,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
-    pass
+    from domains.pharmacy.inventory import PharmacyInventoryItem
+
+from domains.pharmacy.inventory import PharmacyInventoryItem
 
 
 class InventoryDepletedError(Exception):
@@ -35,13 +37,10 @@ class PharmacyDispensationService:
     async def get_inventory_item(
         self,
         drug_code: str,
-    ) -> object | None:
-        """Look up an active inventory item by drug code."""
-        from domains.pharmacy.models import PharmacyInventoryItem
-
+    ) -> PharmacyInventoryItem | None:
+        """Look up an active inventory item by drug code / NDC."""
         stmt = select(PharmacyInventoryItem).where(
-            PharmacyInventoryItem.drug_code == drug_code,
-            PharmacyInventoryItem.is_active.is_(True),
+            PharmacyInventoryItem.ndc_or_sku == drug_code,
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
@@ -52,6 +51,7 @@ class PharmacyDispensationService:
         drug_code: str,
         quantity: int,
         pharmacist_id: uuid.UUID,
+        batch_number: str = "BATCH-DEFAULT",
     ) -> uuid.UUID:
         """Dispense medication and deduct from inventory.
 
@@ -66,50 +66,49 @@ class PharmacyDispensationService:
             msg = f"Drug {drug_code} not found in active inventory"
             raise DrugNotFoundError(msg)
 
-        if item.quantity_on_hand < quantity:
+        if item.quantity_in_stock < quantity:
             raise InventoryDepletedError(
-                f"Need {quantity} units of {drug_code}, only {item.quantity_on_hand} available"
+                f"Need {quantity} units of {drug_code}, only {item.quantity_in_stock} available"
             )
 
         # Deduct inventory
-        item.quantity_on_hand -= quantity
-        item.last_dispensed_at = datetime.now(tz=UTC)
+        item.quantity_in_stock -= quantity
 
         # Create dispensation record
-        from domains.pharmacy.models import PharmacyDispensation
+        from domains.pharmacy.dispensation import DispensationStatus, PharmacyDispensation
 
+        dispensation_id = uuid.uuid4()
         dispensation = PharmacyDispensation(
+            id=dispensation_id,
             prescription_id=prescription_id,
-            drug_code=drug_code,
-            quantity_dispensed=quantity,
-            pharmacist_id=pharmacist_id,
+            dispensed_by_user_id=pharmacist_id,
+            status=DispensationStatus.DISPENSED,
             dispensed_at=datetime.now(tz=UTC),
+            batch_number=batch_number,
+            quantity_dispensed=quantity,
         )
         self._session.add(dispensation)
         await self._session.flush()
 
-        return dispensation.id
+        return dispensation_id
 
     async def check_low_stock(
         self,
         threshold: int = 10,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Return all inventory items below the stock threshold."""
-        from domains.pharmacy.models import PharmacyInventoryItem
-
         stmt = select(PharmacyInventoryItem).where(
-            PharmacyInventoryItem.quantity_on_hand <= threshold,
-            PharmacyInventoryItem.is_active.is_(True),
+            PharmacyInventoryItem.quantity_in_stock <= threshold,
         )
         result = await self._session.execute(stmt)
         items = result.scalars().all()
 
         return [
             {
-                "drug_code": item.drug_code,
-                "drug_name": getattr(item, "drug_name", ""),
-                "quantity_on_hand": item.quantity_on_hand,
-                "reorder_level": getattr(item, "reorder_level", threshold),
+                "drug_code": item.ndc_or_sku,
+                "drug_name": item.medication_name,
+                "quantity_on_hand": item.quantity_in_stock,
+                "reorder_level": item.reorder_level,
             }
             for item in items
         ]
