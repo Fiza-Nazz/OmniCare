@@ -48,17 +48,16 @@ class PrescriptionFulfillmentService:
         quantity: int,
     ) -> bool:
         """Check whether the pharmacy has sufficient stock for a drug."""
-        from domains.pharmacy.models import PharmacyInventoryItem
+        from domains.pharmacy.inventory import PharmacyInventoryItem
 
         stmt = select(PharmacyInventoryItem).where(
-            PharmacyInventoryItem.drug_code == drug_code,
-            PharmacyInventoryItem.is_active.is_(True),
+            PharmacyInventoryItem.ndc_or_sku == drug_code,
         )
         result = await self._session.execute(stmt)
         item = result.scalar_one_or_none()
         if item is None:
             return False
-        return item.quantity_on_hand >= quantity
+        return item.quantity_in_stock >= quantity
 
     async def fulfill(
         self,
