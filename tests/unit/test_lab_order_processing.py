@@ -52,6 +52,7 @@ class TestValidateTransition:
         assert service.validate_transition("in_progress", "cancelled") is True
 
 
+@pytest.mark.asyncio
 class TestTransitionStatus:
     """Tests for actual status transition execution."""
 
