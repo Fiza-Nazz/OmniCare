@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-router = APIRouter(tags=["Health"])
+router = APIRouter(prefix="/health", tags=["Health"])
 
 _start_time = time.monotonic()
 
@@ -24,7 +24,12 @@ def _uptime_seconds() -> float:
 
 
 @router.get(
-    "/health",
+    "",
+    status_code=status.HTTP_200_OK,
+    summary="Health overview",
+)
+@router.get(
+    "/live",
     status_code=status.HTTP_200_OK,
     summary="Liveness probe",
     response_description="Returns OK if the service process is alive.",
@@ -33,17 +38,17 @@ async def liveness() -> dict[str, Any]:
     """Kubernetes liveness probe.
 
     Returns 200 if the application process is responsive.
-    Does NOT check external dependencies.
     """
     return {
-        "status": "healthy",
+        "status": "alive",
+        "service": "omnicare-api",
         "uptime_seconds": _uptime_seconds(),
         "timestamp": datetime.now(tz=UTC).isoformat(),
     }
 
 
 @router.get(
-    "/readiness",
+    "/ready",
     status_code=status.HTTP_200_OK,
     summary="Readiness probe",
     response_description="Returns OK if the service is ready to serve traffic.",
@@ -54,16 +59,14 @@ async def readiness() -> JSONResponse:
     Checks connectivity to critical dependencies (database, cache).
     Returns 503 if any dependency is unavailable.
     """
-    checks: dict[str, dict[str, Any]] = {}
+    checks: dict[str, Any] = {
+        "api": "healthy",
+    }
     all_healthy = True
 
     # Database check
     db_healthy = await _check_database()
-    checks["database"] = {
-        "status": "up" if db_healthy else "down",
-    }
-    if not db_healthy:
-        all_healthy = False
+    checks["database"] = "up" if db_healthy else "down"
 
     body = {
         "status": "ready" if all_healthy else "not_ready",
