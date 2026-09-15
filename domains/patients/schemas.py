@@ -2,6 +2,7 @@
 
 Adheres to Constitution §31 (Validation) and §30 (API Security).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -35,6 +36,7 @@ class PatientCreateRequest(BaseModel):
     def validate_dob_not_future(cls, dob: date) -> date:
         """Ensures date of birth is not a future date."""
         from datetime import date as dt
+
         if dob > dt.today():
             raise ValueError("Date of birth cannot be a future date.")
         return dob

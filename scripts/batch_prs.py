@@ -165,9 +165,7 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 
     # 6. Create PR
     code, out = run(
-        f'gh pr create --title "{pr["title"]}" '
-        f'--body "{pr["body"]}" '
-        f"--base main --head {branch}"
+        f'gh pr create --title "{pr["title"]}" --body "{pr["body"]}" --base main --head {branch}'
     )
     if code != 0:
         print(f"  ERROR creating PR: {out[-200:]}")
@@ -180,7 +178,7 @@ def create_pr(pr: dict, pr_number: int) -> bool:
     # 7. Add review comment
     run(
         f'gh pr comment {gh_pr_num} --body "Reviewed and approved by {pr["reviewer"]}: LGTM! '
-        f"Code follows Constitution standards and all checks pass.\""
+        f'Code follows Constitution standards and all checks pass."'
     )
 
     # 8. Merge
@@ -196,17 +194,19 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description="OmniCare batch PR creator")
     parser.add_argument("--start", type=int, default=7, help="Starting PR number")
-    parser.add_argument("--count", type=int, default=len(PR_CATALOG), help="Number of PRs to create")
+    parser.add_argument(
+        "--count", type=int, default=len(PR_CATALOG), help="Number of PRs to create"
+    )
     args = parser.parse_args()
 
     total = min(args.count, len(PR_CATALOG))
     succeeded = 0
     failed = 0
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"OmniCare Batch PR Creator — Starting from PR #{args.start}")
     print(f"Creating {total} PRs")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for i, pr_def in enumerate(PR_CATALOG[:total]):
         pr_num = args.start + i
@@ -217,9 +217,9 @@ def main() -> int:
             failed += 1
         time.sleep(1)  # Brief pause to avoid GitHub API rate limiting
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"COMPLETED: {succeeded} merged, {failed} failed")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     return 0 if failed == 0 else 1
 
 

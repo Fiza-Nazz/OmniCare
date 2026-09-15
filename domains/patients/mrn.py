@@ -3,6 +3,7 @@
 MRN Format: OMC-YYYYMMDD-XXXXXX (6 random alphanumeric suffix).
 Adheres to Constitution §9 (Patient Identity) — unique identifiers.
 """
+
 from __future__ import annotations
 
 import secrets
@@ -27,5 +28,6 @@ def generate_mrn() -> str:
 def validate_mrn_format(mrn: str) -> bool:
     """Validates that an MRN conforms to the OMC-YYYYMMDD-XXXXXX format."""
     import re
+
     pattern = r"^OMC-\d{8}-[A-Z0-9]{6}$"
     return bool(re.match(pattern, mrn))

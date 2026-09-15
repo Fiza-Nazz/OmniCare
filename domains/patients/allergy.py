@@ -2,6 +2,7 @@
 
 Adheres to Constitution §10 (EHR — Allergies) and §32 (Database Rules).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -15,6 +16,7 @@ from packages.shared.database.base import TimestampedUUIDModel
 
 class AllergySeverity(StrEnum):
     """Clinical allergy severity classification."""
+
     MILD = "mild"
     MODERATE = "moderate"
     SEVERE = "severe"
@@ -24,6 +26,7 @@ class AllergySeverity(StrEnum):
 
 class AllergyCategory(StrEnum):
     """Allergy category classification."""
+
     DRUG = "drug"
     FOOD = "food"
     ENVIRONMENTAL = "environmental"
@@ -60,6 +63,4 @@ class PatientAllergy(TimestampedUUIDModel):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
-    __table_args__ = (
-        Index("ix_patient_allergies_patient", "patient_id"),
-    )
+    __table_args__ = (Index("ix_patient_allergies_patient", "patient_id"),)

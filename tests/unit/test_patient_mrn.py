@@ -2,6 +2,7 @@
 
 Adheres to Constitution §40 (Testing Constitution).
 """
+
 from __future__ import annotations
 
 from domains.patients.mrn import generate_mrn, validate_mrn_format

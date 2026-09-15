@@ -2,6 +2,7 @@
 
 Adheres to Constitution §9 (Patient Identity), §10 (EHR), §32 (Database Rules).
 """
+
 from __future__ import annotations
 
 import uuid

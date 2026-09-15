@@ -2,6 +2,7 @@
 
 Adheres to Constitution §10 (EHR) and §88 (Anti-Hallucination).
 """
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -9,6 +10,7 @@ from enum import StrEnum
 
 class BiologicalSex(StrEnum):
     """Biological sex classification for clinical records."""
+
     MALE = "male"
     FEMALE = "female"
     INTERSEX = "intersex"
@@ -17,6 +19,7 @@ class BiologicalSex(StrEnum):
 
 class BloodGroup(StrEnum):
     """ABO and Rh blood group classification."""
+
     A_POSITIVE = "A+"
     A_NEGATIVE = "A-"
     B_POSITIVE = "B+"
@@ -30,6 +33,7 @@ class BloodGroup(StrEnum):
 
 class MaritalStatus(StrEnum):
     """Marital status classification for patient demographics."""
+
     SINGLE = "single"
     MARRIED = "married"
     DIVORCED = "divorced"
