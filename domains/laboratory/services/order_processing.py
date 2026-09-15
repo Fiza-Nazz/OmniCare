@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,7 @@ class LabOrderProcessingService:
     processing, and result reporting.
     """
 
-    VALID_TRANSITIONS: dict[str, list[str]] = {
+    VALID_TRANSITIONS: ClassVar[dict[str, list[str]]] = {
         "ordered": ["specimen_collected", "cancelled"],
         "specimen_collected": ["in_progress", "cancelled"],
         "in_progress": ["completed", "cancelled"],
