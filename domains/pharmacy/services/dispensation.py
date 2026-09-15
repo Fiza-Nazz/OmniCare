@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 if TYPE_CHECKING:
     from domains.pharmacy.inventory import PharmacyInventoryItem
 
-from domains.pharmacy.dispensation import DispensationStatus, PharmacyDispensation
 from domains.pharmacy.inventory import PharmacyInventoryItem
 
 
@@ -76,6 +75,8 @@ class PharmacyDispensationService:
         item.quantity_in_stock -= quantity
 
         # Create dispensation record
+        from domains.pharmacy.dispensation import DispensationStatus, PharmacyDispensation
+
         dispensation_id = uuid.uuid4()
         dispensation = PharmacyDispensation(
             id=dispensation_id,
