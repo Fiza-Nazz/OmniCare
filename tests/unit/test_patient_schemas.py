@@ -2,11 +2,13 @@
 
 Adheres to Constitution §40 (Testing Constitution) and §31 (Validation).
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
 
 import pytest
+from pydantic import ValidationError
 
 from domains.patients.enums import BiologicalSex, BloodGroup, MaritalStatus
 from domains.patients.schemas import PatientCreateRequest, PatientUpdateRequest
@@ -56,5 +58,5 @@ def test_patient_update_partial_fields():
 
 def test_missing_required_fields_raises():
     """Verify missing required fields raise validation error."""
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         PatientCreateRequest(first_name="Only")
