@@ -6,7 +6,8 @@ Adheres to Constitution §32 (Database Rules) and §40 (Testing Constitution).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import String, select
@@ -49,7 +50,7 @@ async def test_utc_now_returns_timezone_aware():
     """Verify utc_now generates timezone-aware UTC timestamps."""
     now = utc_now()
     assert now.tzinfo is not None
-    assert now.tzinfo == timezone.utc
+    assert now.tzinfo == UTC
 
 
 @pytest.mark.asyncio

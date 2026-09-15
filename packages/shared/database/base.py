@@ -9,15 +9,16 @@ Adheres to Constitution:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, ClassVar
+
 from sqlalchemy import DateTime, Integer, TypeDecorator, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 def utc_now() -> datetime:
     """Returns the current timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class UTCDateTime(TypeDecorator):
@@ -33,8 +34,8 @@ class UTCDateTime(TypeDecorator):
     def process_result_value(self, value: Any, dialect: Any) -> datetime | None:
         if value is not None and isinstance(value, datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            return value.astimezone(timezone.utc)
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
         return value
 
 
@@ -81,7 +82,7 @@ class TimestampedUUIDModel(Base):
         doc="Optimistic concurrency control version counter.",
     )
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {
         "version_id_col": version_id,
     }
 

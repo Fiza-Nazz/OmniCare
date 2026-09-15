@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
-from pydantic import Field, PostgresDsn, RedisDsn, field_validator
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -101,12 +102,11 @@ class AppSettings(BaseSettings):
         """Enforces that production environments do not use default dev secrets."""
         # Note: In Pydantic v2, other field values can be accessed via info.data
         env = info.data.get("environment") if info.data else "development"
-        if env == "production":
-            if "insecure" in val.lower() or len(val) < 32:
-                raise ValueError(
-                    "Production environment MUST supply a cryptographically secure "
-                    "SECRET_KEY of at least 32 characters."
-                )
+        if env == "production" and ("insecure" in val.lower() or len(val) < 32):
+            raise ValueError(
+                "Production environment MUST supply a cryptographically secure "
+                "SECRET_KEY of at least 32 characters."
+            )
         return val
 
 

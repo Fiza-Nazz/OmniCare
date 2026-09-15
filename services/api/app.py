@@ -8,12 +8,14 @@ Adheres to Constitution:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.api.config import AppSettings, get_settings
+from services.api.middleware.correlation import CorrelationIdMiddleware
 from services.api.routes.health import router as health_router
 
 
@@ -54,6 +56,9 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         allow_headers=["*"],
         expose_headers=["X-Correlation-ID"],
     )
+
+    # Correlation ID & Observability Middleware
+    app.add_middleware(CorrelationIdMiddleware)
 
     # Register routers
     app.include_router(health_router)

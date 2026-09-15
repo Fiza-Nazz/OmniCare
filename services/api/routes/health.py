@@ -5,8 +5,9 @@ Adheres to Constitution §39 (Observability: Liveness & Readiness endpoints).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/health", tags=["Health & Probes"])
 async def liveness_probe() -> dict[str, Any]:
     return {
         "status": "alive",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "service": "omnicare-api",
     }
 
@@ -38,7 +39,7 @@ async def readiness_probe() -> JSONResponse:
     checks: dict[str, str] = {
         "api": "healthy",
         "database": "unconfigured",  # Will be wired to async db ping in PR #4
-        "redis": "unconfigured",     # Will be wired to redis ping in PR #7
+        "redis": "unconfigured",  # Will be wired to redis ping in PR #7
     }
 
     # If any mandatory service check reports 'unhealthy', mark system not ready
@@ -49,7 +50,7 @@ async def readiness_probe() -> JSONResponse:
         status_code=status_code,
         content={
             "status": "ready" if is_ready else "not_ready",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": checks,
         },
     )
