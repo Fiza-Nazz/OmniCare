@@ -29,6 +29,7 @@ def service(mock_session: AsyncMock) -> PrescriptionFulfillmentService:
     return PrescriptionFulfillmentService(session=mock_session)
 
 
+@pytest.mark.asyncio
 class TestValidateStock:
     """Tests for stock validation logic."""
 
@@ -48,7 +49,7 @@ class TestValidateStock:
         mock_session: AsyncMock,
     ) -> None:
         item = MagicMock()
-        item.quantity_on_hand = 5
+        item.quantity_in_stock = 5
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = item
         mock_session.execute.return_value = mock_result
@@ -60,13 +61,14 @@ class TestValidateStock:
         mock_session: AsyncMock,
     ) -> None:
         item = MagicMock()
-        item.quantity_on_hand = 100
+        item.quantity_in_stock = 100
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = item
         mock_session.execute.return_value = mock_result
         assert await service.validate_stock("DRUG-001", 10) is True
 
 
+@pytest.mark.asyncio
 class TestFulfill:
     """Tests for prescription fulfillment workflow."""
 
