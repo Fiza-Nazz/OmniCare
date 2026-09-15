@@ -30,6 +30,7 @@ def service(mock_session: AsyncMock) -> PharmacyDispensationService:
     return PharmacyDispensationService(session=mock_session)
 
 
+@pytest.mark.asyncio
 class TestGetInventoryItem:
     """Tests for inventory item lookup."""
 
@@ -45,6 +46,7 @@ class TestGetInventoryItem:
         assert result is None
 
 
+@pytest.mark.asyncio
 class TestDispense:
     """Tests for dispensation workflow."""
 
@@ -65,15 +67,31 @@ class TestDispense:
         mock_session: AsyncMock,
     ) -> None:
         item = MagicMock()
-        item.quantity_on_hand = 5
-        item.is_active = True
+        item.quantity_in_stock = 5
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = item
         mock_session.execute.return_value = mock_result
         with pytest.raises(InventoryDepletedError):
             await service.dispense(uuid4(), "DRUG-001", 50, uuid4())
 
+    async def test_successful_dispense_deducts_stock(
+        self,
+        service: PharmacyDispensationService,
+        mock_session: AsyncMock,
+    ) -> None:
+        item = MagicMock()
+        item.quantity_in_stock = 100
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = item
+        mock_session.execute.return_value = mock_result
+        disp_id = await service.dispense(uuid4(), "DRUG-001", 20, uuid4())
+        assert disp_id is not None
+        assert item.quantity_in_stock == 80
+        mock_session.add.assert_called_once()
+        mock_session.flush.assert_called_once()
 
+
+@pytest.mark.asyncio
 class TestLowStock:
     """Tests for low stock monitoring."""
 
