@@ -43,7 +43,7 @@ def wait_for_checks_green(gh_pr_num: str, max_wait: int = 240) -> bool:
     seen_checks = False
 
     while time.time() - start < max_wait:
-        code, out = run(f"gh pr checks {gh_pr_num} --repo Fiza-Nazz/OmniCare")
+        _, out = run(f"gh pr checks {gh_pr_num} --repo Fiza-Nazz/OmniCare")
         lines = [line.strip() for line in out.strip().split("\n") if line.strip()]
 
         # If any check failed
@@ -56,10 +56,9 @@ def wait_for_checks_green(gh_pr_num: str, max_wait: int = 240) -> bool:
             print(f"  CI 100% GREEN for PR #{gh_pr_num} ({len(lines)}/2 passed)")
             return True
 
-        if len(lines) > 0:
-            if not seen_checks:
-                seen_checks = True
-                print(f"  CI triggered for PR #{gh_pr_num}, waiting for completion...")
+        if lines and not seen_checks:
+            seen_checks = True
+            print(f"  CI triggered for PR #{gh_pr_num}, waiting for completion...")
 
         time.sleep(6)
 
