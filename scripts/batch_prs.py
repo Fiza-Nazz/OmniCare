@@ -41,82 +41,6 @@ def run(cmd: str, cwd: str = str(ROOT)) -> tuple[int, str]:
 # ---------------------------------------------------------------------------
 
 PR_CATALOG: list[dict] = [
-    # ── PR 17: Patient Insurance Membership ─────────────────────────────────
-    {
-        "branch": "feat/patient-insurance-membership-model",
-        "commit": "feat(patients): add PatientInsuranceMembership model for coverage records",
-        "title": "feat(patients): add PatientInsuranceMembership model for coverage records",
-        "file": "domains/patients/insurance_membership.py",
-        "content": '''\
-"""Patient Insurance Membership domain model.
-
-Adheres to Constitution §11 (Insurance & Billing) and §32 (Database Rules).
-"""
-from __future__ import annotations
-
-import uuid
-from datetime import date
-from enum import StrEnum
-
-from sqlalchemy import Date, ForeignKey, Index, String
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class InsuranceRelationship(StrEnum):
-    """Relationship of the insured member to the policy holder."""
-
-    SELF = "self"
-    SPOUSE = "spouse"
-    CHILD = "child"
-    OTHER = "other"
-
-
-class InsuranceMembershipStatus(StrEnum):
-    """Active status of the insurance membership."""
-
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    PENDING = "pending"
-    EXPIRED = "expired"
-
-
-class PatientInsuranceMembership(TimestampedUUIDModel):
-    """Tracks a patient insurance policy and membership details."""
-
-    __tablename__ = "patient_insurance_memberships"
-
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    provider_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    policy_number: Mapped[str] = mapped_column(String(100), nullable=False)
-    group_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    member_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    relationship: Mapped[InsuranceRelationship] = mapped_column(
-        SQLEnum(InsuranceRelationship, native_enum=False),
-        default=InsuranceRelationship.SELF,
-        nullable=False,
-    )
-    status: Mapped[InsuranceMembershipStatus] = mapped_column(
-        SQLEnum(InsuranceMembershipStatus, native_enum=False),
-        default=InsuranceMembershipStatus.ACTIVE,
-        nullable=False,
-    )
-    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    copay_amount: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
-
-    __table_args__ = (Index("ix_patient_insurance_patient", "patient_id"),)
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nAdds PatientInsuranceMembership model for insurance policy coverage tracking.\\n\\n## Why\\nConstitution §11 (Insurance & Billing) requires linking patients to insurance providers.\\n\\n## Testing\\nModel fields and status enum reviewed.",
-    },
     # ── PR 18: Patient Emergency Contact ────────────────────────────────────
     {
         "branch": "feat/patient-emergency-contact-model",
@@ -693,7 +617,9 @@ def create_pr(pr: dict, pr_number: int) -> bool:
     pr_url = out.strip().split("\n")[-1]
     gh_pr_num = pr_url.split("/")[-1]
 
-    # 8. Watch CI checks until completely GREEN pass (2/2)
+    # 8. Wait for CI to trigger and watch checks until completely GREEN pass (2/2)
+    print(f"  Waiting 10s for GitHub Actions to trigger PR #{gh_pr_num}...")
+    time.sleep(10)
     print(f"  Watching CI checks for PR #{gh_pr_num}...")
     code, out = run(f"gh pr checks {gh_pr_num} --watch")
     if code != 0:
@@ -719,7 +645,7 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="OmniCare batch PR creator v2")
-    parser.add_argument("--start", type=int, default=14, help="Starting PR number label")
+    parser.add_argument("--start", type=int, default=18, help="Starting PR number label")
     parser.add_argument("--count", type=int, default=len(PR_CATALOG))
     args = parser.parse_args()
 
