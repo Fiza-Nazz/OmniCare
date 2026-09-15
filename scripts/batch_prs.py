@@ -1,22 +1,25 @@
-"""OmniCare High-Speed Professional PR Batch Creator — v4.
+"""OmniCare High-Speed Professional PR Batch Creator — v5.
 
-Batch PRs 50 to 75:
-- PR 50: Laboratory Test Catalog
-- PR 51-54: Insurance Domain (Enums, Payers, Claims, Pre-Authorizations)
-- PR 55-58: Notifications Domain (Enums, Logs, Templates)
-- PR 59-61: Audit Domain (Enums, HIPAA Immutable Audit Trail)
-- PR 62-64: Reporting Domain (Enums, Scheduled Reports)
+Batch PRs 60 to 90:
+- PR 60: Lab Test Catalog
+- PR 61: HIPAA Immutable Audit Event Model
+- PR 62-64: Reporting Domain (Package, Enums, Scheduled Report Model)
 - PR 65-66: Patient Search Service & Unit Tests
 - PR 67-68: Appointment Conflict Detection Service & Unit Tests
-- PR 69-70: Clinical Note Signing Service & Unit Tests
+- PR 69-70: Clinical Note Digital Signature Service & Unit Tests
 - PR 71-72: Prescription Fulfillment Service & Unit Tests
 - PR 73-74: Invoice Calculation Service & Unit Tests
 - PR 75: Prometheus Metrics Instrumentation Middleware
+- PR 76: Rate Limiting Middleware
+- PR 77: Security Headers Middleware
+- PR 78: FHIR Patient Resource Adapter
+- PR 79: FHIR Observation Resource Adapter
+- PR 80: FHIR Encounter Resource Adapter
 
 All PRs strictly enforce 10s wait for CI trigger + gh pr checks --watch until 100% GREEN (2/2).
 
 Usage:
-    python scripts/batch_prs.py --count 26
+    python scripts/batch_prs.py --count 21
 """
 
 from __future__ import annotations
@@ -43,9 +46,9 @@ def run(cmd: str, cwd: str = str(ROOT)) -> tuple[int, str]:
 
 
 PR_CATALOG: list[dict] = [
-    # ── PR 50: Lab Test Catalog ──────────────────────────────────────────────
+    # ── PR 60: Lab Test Catalog ──────────────────────────────────────────────
     {
-        "branch": "feat/laboratory-catalog-model",
+        "branch": "feat/laboratory-catalog-model-clean",
         "commit": "feat(laboratory): add LabTestCatalog ORM model for standardized test definitions",
         "title": "feat(laboratory): add LabTestCatalog ORM model for standardized test definitions",
         "file": "domains/laboratory/catalog.py",
@@ -85,322 +88,16 @@ class LabTestCatalog(TimestampedUUIDModel):
         "reviewer": "@kanwalhafsa",
         "body": "## Summary\\nAdds LabTestCatalog master model for available lab investigations with pricing and turnaround times.\\n\\n## Why\\nConstitution §16 requires standard test catalogs for order entry.\\n\\n## Testing\\nModel constraints and indexes reviewed.",
     },
-    # ── PR 51: Insurance Enums ───────────────────────────────────────────────
+    # ── PR 61: Audit Event Model ─────────────────────────────────────────────
     {
-        "branch": "feat/insurance-enums-and-claims",
-        "commit": "feat(insurance): add ClaimStatus, PayerType, and DenialReason enums",
-        "title": "feat(insurance): add ClaimStatus, PayerType, and DenialReason enums",
-        "file": "domains/insurance/enums.py",
+        "branch": "feat/audit-event-immutable-model",
+        "commit": "feat(audit): implement AuditEvent ORM model for HIPAA immutable access trail",
+        "title": "feat(audit): implement AuditEvent ORM model for HIPAA immutable access trail",
+        "file": "domains/audit/models.py",
         "content": '''\
-"""Insurance domain enums for payers, claim adjudication, and denial reasons.
+"""Audit Event ORM model for HIPAA-compliant immutable access logging.
 
-Adheres to Constitution §18 (Insurance Verification & Claims).
-"""
-from __future__ import annotations
-
-from enum import StrEnum
-
-
-class ClaimStatus(StrEnum):
-    """Adjudication status of an insurance reimbursement claim."""
-
-    SUBMITTED = "submitted"
-    ACKNOWLEDGED = "acknowledged"
-    IN_REVIEW = "in_review"
-    APPROVED = "approved"
-    PARTIALLY_APPROVED = "partially_approved"
-    DENIED = "denied"
-    APPEALED = "appealed"
-    SETTLED = "settled"
-
-
-class PayerType(StrEnum):
-    """Classification of insurance payer organisation."""
-
-    COMMERCIAL = "commercial"
-    GOVERNMENT = "government"
-    MEDICAID = "medicaid"
-    MEDICARE = "medicare"
-    SELF_INSURED = "self_insured"
-    CHARITY_CARE = "charity_care"
-
-
-class DenialReason(StrEnum):
-    """Standardized claim denial classification."""
-
-    NONE = "none"
-    INELIGIBLE_MEMBER = "ineligible_member"
-    SERVICE_NOT_COVERED = "service_not_covered"
-    PRIOR_AUTH_MISSING = "prior_auth_missing"
-    DUPLICATE_CLAIM = "duplicate_claim"
-    TIMELY_FILING_EXPIRED = "timely_filing_expired"
-    INCORRECT_CODING = "incorrect_coding"
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nAdds ClaimStatus, PayerType, and DenialReason enums for insurance claims adjudication.\\n\\n## Why\\nConstitution §18 requires structured claim lifecycle states.\\n\\n## Testing\\nEnum values verified against healthcare billing standards.",
-    },
-    # ── PR 52: Insurance Payer Model ─────────────────────────────────────────
-    {
-        "branch": "feat/insurance-payer-model",
-        "commit": "feat(insurance): implement InsurancePayer ORM model with electronic payer ID",
-        "title": "feat(insurance): implement InsurancePayer ORM model with electronic payer ID",
-        "file": "domains/insurance/models.py",
-        "content": '''\
-"""Insurance Payer domain model.
-
-Adheres to Constitution §18 (Insurance Verification & Claims) and §32 (Database Rules).
-"""
-from __future__ import annotations
-
-from sqlalchemy import Boolean, Index, String
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from domains.insurance.enums import PayerType
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class InsurancePayer(TimestampedUUIDModel):
-    """Represents an insurance company or healthcare payer entity."""
-
-    __tablename__ = "insurance_payers"
-
-    payer_code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
-    payer_type: Mapped[PayerType] = mapped_column(
-        SQLEnum(PayerType, native_enum=False),
-        default=PayerType.COMMERCIAL,
-        nullable=False,
-    )
-    electronic_edi_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    claims_portal_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    __table_args__ = (
-        Index("ix_insurance_payers_name", "name"),
-    )
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nImplements InsurancePayer model for insurance company registry with electronic EDI identification.\\n\\n## Why\\nConstitution §18 requires central payer management for claims routing.\\n\\n## Testing\\nModel fields and unique constraints verified.",
-    },
-    # ── PR 53: Insurance Claim Model ─────────────────────────────────────────
-    {
-        "branch": "feat/insurance-claim-model",
-        "commit": "feat(insurance): implement InsuranceClaim ORM model with billed amount and adjudication",
-        "title": "feat(insurance): implement InsuranceClaim ORM model with billed amount and adjudication",
-        "file": "domains/insurance/claim.py",
-        "content": '''\
-"""Insurance Claim domain model.
-
-Adheres to Constitution §18 (Insurance Verification & Claims) and §20 (Financial Integrity).
-"""
-from __future__ import annotations
-
-import uuid
-from datetime import date
-from decimal import Decimal
-
-from sqlalchemy import Date, ForeignKey, Index, Numeric, String, Text
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from domains.insurance.enums import ClaimStatus, DenialReason
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class InsuranceClaim(TimestampedUUIDModel):
-    """Represents an insurance reimbursement claim submitted against an invoice."""
-
-    __tablename__ = "insurance_claims"
-
-    invoice_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patient_invoices.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    payer_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("insurance_payers.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    claim_number: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        index=True,
-        nullable=False,
-    )
-    status: Mapped[ClaimStatus] = mapped_column(
-        SQLEnum(ClaimStatus, native_enum=False),
-        default=ClaimStatus.SUBMITTED,
-        nullable=False,
-    )
-    billed_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    approved_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    patient_responsibility: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    denial_reason: Mapped[DenialReason] = mapped_column(
-        SQLEnum(DenialReason, native_enum=False),
-        default=DenialReason.NONE,
-        nullable=False,
-    )
-    submission_date: Mapped[date] = mapped_column(Date, nullable=False)
-    adjudication_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    adjudication_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        Index("ix_insurance_claims_invoice", "invoice_id"),
-        Index("ix_insurance_claims_status", "status"),
-    )
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nImplements InsuranceClaim model with NUMERIC precision for billed, approved, and patient amounts.\\n\\n## Why\\nConstitution §18 and §20 require precision claim adjudication tracking.\\n\\n## Testing\\nModel fields and foreign keys verified.",
-    },
-    # ── PR 54: Pre-Authorization Model ───────────────────────────────────────
-    {
-        "branch": "feat/insurance-pre-authorization-model",
-        "commit": "feat(insurance): implement PreAuthorization model for procedure approval tracking",
-        "title": "feat(insurance): implement PreAuthorization model for procedure approval tracking",
-        "file": "domains/insurance/preauth.py",
-        "content": '''\
-"""Insurance Pre-Authorization domain model.
-
-Adheres to Constitution §18 (Insurance Verification & Claims).
-"""
-from __future__ import annotations
-
-import uuid
-from datetime import date
-from enum import StrEnum
-
-from sqlalchemy import Date, ForeignKey, Index, String, Text
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class PreAuthStatus(StrEnum):
-    """Status of a prior authorization request."""
-
-    REQUESTED = "requested"
-    PENDING_ADDITIONAL_INFO = "pending_additional_info"
-    APPROVED = "approved"
-    DENIED = "denied"
-    EXPIRED = "expired"
-
-
-class PreAuthorization(TimestampedUUIDModel):
-    """Records formal payer prior-authorization required for surgical or diagnostic procedures."""
-
-    __tablename__ = "insurance_pre_authorizations"
-
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    payer_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("insurance_payers.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    authorization_number: Mapped[str] = mapped_column(
-        String(60),
-        unique=True,
-        index=True,
-        nullable=False,
-    )
-    procedure_cpt_code: Mapped[str] = mapped_column(String(20), nullable=False)
-    status: Mapped[PreAuthStatus] = mapped_column(
-        SQLEnum(PreAuthStatus, native_enum=False),
-        default=PreAuthStatus.REQUESTED,
-        nullable=False,
-    )
-    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
-    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        Index("ix_preauth_patient", "patient_id"),
-        Index("ix_preauth_number", "authorization_number"),
-    )
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nImplements PreAuthorization model tracking prior approval numbers and validity periods.\\n\\n## Why\\nConstitution §18 requires prior auth records for clinical procedure verification.\\n\\n## Testing\\nModel fields and status enum reviewed.",
-    },
-    # ── PR 55: Notifications Domain Init ─────────────────────────────────────
-    {
-        "branch": "feat/notifications-domain-init",
-        "commit": "feat(notifications): initialize notifications domain package structure",
-        "title": "feat(notifications): initialize notifications domain package structure",
-        "file": "domains/notifications/__init__.py",
-        "content": '''\
-"""OmniCare Multi-Channel Notification Domain — SMS, Email, and Push Notifications.
-
-Adheres to Constitution §21 (Notifications Engine).
-"""
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nInitializes notifications domain package structure.\\n\\n## Why\\nConstitution §21 requires dedicated multi-channel notification engine.\\n\\n## Testing\\nPackage import verified.",
-    },
-    # ── PR 56: Notification Enums ────────────────────────────────────────────
-    {
-        "branch": "feat/notifications-channel-enums",
-        "commit": "feat(notifications): add NotificationChannel, Priority, and DeliveryStatus enums",
-        "title": "feat(notifications): add NotificationChannel, Priority, and DeliveryStatus enums",
-        "file": "domains/notifications/enums.py",
-        "content": '''\
-"""Notification domain enums for dispatch channels, priority, and delivery tracking.
-
-Adheres to Constitution §21 (Notifications Engine).
-"""
-from __future__ import annotations
-
-from enum import StrEnum
-
-
-class NotificationChannel(StrEnum):
-    """Outbound communication channel."""
-
-    EMAIL = "email"
-    SMS = "sms"
-    PUSH = "push"
-    IN_APP = "in_app"
-    WHATSAPP = "whatsapp"
-
-
-class NotificationDeliveryStatus(StrEnum):
-    """Delivery status lifecycle."""
-
-    QUEUED = "queued"
-    SENT = "sent"
-    DELIVERED = "delivered"
-    FAILED = "failed"
-    BOUNCED = "bounced"
-
-
-class NotificationPriority(StrEnum):
-    """Urgency priority for dispatch ordering."""
-
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    EMERGENCY = "emergency"
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nAdds NotificationChannel, NotificationDeliveryStatus, and NotificationPriority enums.\\n\\n## Why\\nConstitution §21 mandates typed channel and delivery status classification.\\n\\n## Testing\\nEnum values verified.",
-    },
-    # ── PR 57: Notification Log Model ────────────────────────────────────────
-    {
-        "branch": "feat/notifications-log-model",
-        "commit": "feat(notifications): implement NotificationLog ORM model with recipient and status tracking",
-        "title": "feat(notifications): implement NotificationLog ORM model with recipient and status tracking",
-        "file": "domains/notifications/models.py",
-        "content": '''\
-"""Notification Log ORM model for outbound messaging audit trail.
-
-Adheres to Constitution §21 (Notifications Engine) and §23 (Audit Trail).
+Adheres to Constitution §23 (Audit Trail & Observability) and §26 (HIPAA Security).
 """
 from __future__ import annotations
 
@@ -411,166 +108,616 @@ from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domains.notifications.enums import (
-    NotificationChannel,
-    NotificationDeliveryStatus,
-    NotificationPriority,
-)
+from domains.audit.enums import AuditAction, EntityType, SecurityRiskLevel
 from packages.shared.database.base import TimestampedUUIDModel
 
 
-class NotificationLog(TimestampedUUIDModel):
-    """Records an outbound notification event across any communication channel."""
+class AuditEvent(TimestampedUUIDModel):
+    """Immutable audit trail entry recording access to protected health information."""
 
-    __tablename__ = "notification_logs"
+    __tablename__ = "audit_events"
 
-    recipient_user_id: Mapped[uuid.UUID | None] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+        doc="The authenticated user who performed the action.",
     )
-    channel: Mapped[NotificationChannel] = mapped_column(
-        SQLEnum(NotificationChannel, native_enum=False),
+    action: Mapped[AuditAction] = mapped_column(
+        SQLEnum(AuditAction, native_enum=False),
         nullable=False,
     )
-    priority: Mapped[NotificationPriority] = mapped_column(
-        SQLEnum(NotificationPriority, native_enum=False),
-        default=NotificationPriority.NORMAL,
+    entity_type: Mapped[EntityType] = mapped_column(
+        SQLEnum(EntityType, native_enum=False),
         nullable=False,
     )
-    status: Mapped[NotificationDeliveryStatus] = mapped_column(
-        SQLEnum(NotificationDeliveryStatus, native_enum=False),
-        default=NotificationDeliveryStatus.QUEUED,
+    entity_id: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        doc="Identifier of the record accessed (UUID or code).",
+    )
+    risk_level: Mapped[SecurityRiskLevel] = mapped_column(
+        SQLEnum(SecurityRiskLevel, native_enum=False),
+        default=SecurityRiskLevel.LOW,
         nullable=False,
     )
-    recipient_address: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-        doc="Destination email address or E.164 phone number.",
-    )
-    subject: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
-        Index("ix_notification_logs_recipient", "recipient_user_id"),
-        Index("ix_notification_logs_status", "status"),
+        Index("ix_audit_events_entity", "entity_type", "entity_id"),
+        Index("ix_audit_events_occurred", "occurred_at"),
     )
 ''',
         "reviewer": "@Alishba06",
-        "body": "## Summary\\nImplements NotificationLog model recording all outbound messages with delivery timestamps.\\n\\n## Why\\nConstitution §21 and §23 require auditability of all patient and clinical communications.\\n\\n## Testing\\nModel fields and indexes reviewed.",
+        "body": "## Summary\\nImplements AuditEvent model capturing actor, action, entity, IP address, and correlation ID.\\n\\n## Why\\nConstitution §23 and §26 mandate immutable audit logging for HIPAA compliance.\\n\\n## Testing\\nModel fields and indexes verified.",
     },
-    # ── PR 58: Notification Template Model ───────────────────────────────────
+    # ── PR 62: Reporting Domain Init ─────────────────────────────────────────
     {
-        "branch": "feat/notifications-template-model",
-        "commit": "feat(notifications): implement NotificationTemplate ORM model for parameterized templates",
-        "title": "feat(notifications): implement NotificationTemplate ORM model for parameterized templates",
-        "file": "domains/notifications/template.py",
+        "branch": "feat/reporting-domain-init",
+        "commit": "feat(reporting): initialize clinical and financial reporting domain package",
+        "title": "feat(reporting): initialize clinical and financial reporting domain package",
+        "file": "domains/reporting/__init__.py",
         "content": '''\
-"""Notification Template domain model.
+"""OmniCare Healthcare Business Intelligence & Clinical Reporting Domain.
 
-Adheres to Constitution §21 (Notifications Engine — Reusable Templates).
+Adheres to Constitution §22 (Analytics & Reporting).
 """
-from __future__ import annotations
-
-from sqlalchemy import Boolean, Index, String, Text
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from domains.notifications.enums import NotificationChannel
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class NotificationTemplate(TimestampedUUIDModel):
-    """Reusable parameterized message template for automated notifications."""
-
-    __tablename__ = "notification_templates"
-
-    template_code: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(150), nullable=False)
-    channel: Mapped[NotificationChannel] = mapped_column(
-        SQLEnum(NotificationChannel, native_enum=False),
-        nullable=False,
-    )
-    subject_template: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    body_template: Mapped[str] = mapped_column(Text, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    __table_args__ = (
-        Index("ix_notification_templates_code", "template_code"),
-    )
 ''',
         "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nAdds NotificationTemplate model supporting variable interpolation for automated notifications.\\n\\n## Why\\nConstitution §21 requires standard reusable notification templates.\\n\\n## Testing\\nModel fields and unique constraints verified.",
+        "body": "## Summary\\nInitializes reporting domain package structure.\\n\\n## Why\\nConstitution §22 requires isolated reporting and BI domain.\\n\\n## Testing\\nPackage import verified.",
     },
-    # ── PR 59: Audit Domain Init ─────────────────────────────────────────────
+    # ── PR 63: Reporting Enums ───────────────────────────────────────────────
     {
-        "branch": "feat/audit-domain-init",
-        "commit": "feat(audit): initialize audit trail domain package structure",
-        "title": "feat(audit): initialize audit trail domain package structure",
-        "file": "domains/audit/__init__.py",
+        "branch": "feat/reporting-enums-and-formats",
+        "commit": "feat(reporting): add ReportType, OutputFormat, and ReportCadence enums",
+        "title": "feat(reporting): add ReportType, OutputFormat, and ReportCadence enums",
+        "file": "domains/reporting/enums.py",
         "content": '''\
-"""OmniCare HIPAA-Compliant Security & Audit Trail Domain.
+"""Reporting domain enums for clinical metrics, financial summaries, and report formats.
 
-Adheres to Constitution §23 (Audit Trail & Observability) and §26 (HIPAA Security).
-"""
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nInitializes audit domain package structure.\\n\\n## Why\\nConstitution §23 and §26 require dedicated immutable audit log subsystem.\\n\\n## Testing\\nPackage import verified.",
-    },
-    # ── PR 60: Audit Enums ───────────────────────────────────────────────────
-    {
-        "branch": "feat/audit-action-and-risk-enums",
-        "commit": "feat(audit): add AuditAction, EntityType, and SecurityRiskLevel enums",
-        "title": "feat(audit): add AuditAction, EntityType, and SecurityRiskLevel enums",
-        "file": "domains/audit/enums.py",
-        "content": '''\
-"""Audit domain enums for security event tracking, actions, and risk classification.
-
-Adheres to Constitution §23 (Audit Trail) and §26 (HIPAA Compliance).
+Adheres to Constitution §22 (Analytics & Reporting).
 """
 from __future__ import annotations
 
 from enum import StrEnum
 
 
-class AuditAction(StrEnum):
-    """Action performed on protected health information or system resources."""
+class ReportType(StrEnum):
+    """Classification of generated clinical or operational report."""
 
-    CREATE = "create"
-    READ = "read"
-    UPDATE = "update"
-    DELETE = "delete"
-    LOGIN_SUCCESS = "login_success"
-    LOGIN_FAILED = "login_failed"
-    PASSWORD_CHANGE = "password_change"
-    EXPORT = "export"
-    DISCLOSURE = "disclosure"
-
-
-class EntityType(StrEnum):
-    """Type of entity accessed or modified."""
-
-    PATIENT = "patient"
-    CLINICAL_NOTE = "clinical_note"
-    PRESCRIPTION = "prescription"
-    LAB_RESULT = "lab_result"
-    INVOICE = "invoice"
-    USER = "user"
-    TELEHEALTH_SESSION = "telehealth_session"
+    PATIENT_DEMOGRAPHICS = "patient_demographics"
+    CLINICAL_OUTCOMES = "clinical_outcomes"
+    APPOINTMENT_UTILIZATION = "appointment_utilization"
+    FINANCIAL_REVENUE = "financial_revenue"
+    INSURANCE_CLAIMS = "insurance_claims"
+    PHARMACY_DISPENSATION = "pharmacy_dispensation"
+    LABORATORY_TURNAROUND = "laboratory_turnaround"
+    AUDIT_SECURITY = "audit_security"
 
 
-class SecurityRiskLevel(StrEnum):
-    """Assessed security risk level of the logged action."""
+class OutputFormat(StrEnum):
+    """File format for rendered reports."""
 
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    PDF = "pdf"
+    CSV = "csv"
+    XLSX = "xlsx"
+    JSON = "json"
+
+
+class ReportCadence(StrEnum):
+    """Schedule recurrence frequency."""
+
+    ON_DEMAND = "on_demand"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nAdds ReportType, OutputFormat, and ReportCadence enums for reporting.\\n\\n## Why\\nConstitution §22 requires standard classification of report categories and formats.\\n\\n## Testing\\nEnum values verified.",
+    },
+    # ── PR 64: Scheduled Report Model ────────────────────────────────────────
+    {
+        "branch": "feat/reporting-scheduled-report-model",
+        "commit": "feat(reporting): implement ScheduledReport ORM model with cadence scheduling",
+        "title": "feat(reporting): implement ScheduledReport ORM model with cadence scheduling",
+        "file": "domains/reporting/models.py",
+        "content": '''\
+"""Scheduled Report ORM model for automated business intelligence.
+
+Adheres to Constitution §22 (Analytics & Reporting) and §32 (Database Rules).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from domains.reporting.enums import OutputFormat, ReportCadence, ReportType
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class ScheduledReport(TimestampedUUIDModel):
+    """Defines an automated recurring report configuration."""
+
+    __tablename__ = "scheduled_reports"
+
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    report_type: Mapped[ReportType] = mapped_column(
+        SQLEnum(ReportType, native_enum=False),
+        nullable=False,
+    )
+    cadence: Mapped[ReportCadence] = mapped_column(
+        SQLEnum(ReportCadence, native_enum=False),
+        default=ReportCadence.MONTHLY,
+        nullable=False,
+    )
+    output_format: Mapped[OutputFormat] = mapped_column(
+        SQLEnum(OutputFormat, native_enum=False),
+        default=OutputFormat.PDF,
+        nullable=False,
+    )
+    parameters_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_scheduled_reports_type", "report_type"),
+    )
 ''',
         "reviewer": "@Alishba06",
-        "body": "## Summary\\nAdds AuditAction, EntityType, and SecurityRiskLevel enums for HIPAA audit logging.\\n\\n## Why\\nConstitution §23 mandates granular action and entity classification for all access events.\\n\\n## Testing\\nEnum values verified against HIPAA audit standards.",
+        "body": "## Summary\\nImplements ScheduledReport model for recurring report generation with cadence and format options.\\n\\n## Why\\nConstitution §22 requires scheduled automated reporting.\\n\\n## Testing\\nModel fields and indexes verified.",
+    },
+    # ── PR 65: Patient Search Service ────────────────────────────────────────
+    {
+        "branch": "feat/patients-search-service",
+        "commit": "feat(patients): implement PatientSearchService with MRN and name matching",
+        "title": "feat(patients): implement PatientSearchService with MRN and name matching",
+        "file": "domains/patients/service.py",
+        "content": '''\
+"""Patient search and query service.
+
+Adheres to Constitution §9 (Patient Identity) and §33 (CQRS / Read Models).
+"""
+from __future__ import annotations
+
+from typing import Sequence
+
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domains.patients.models import Patient
+
+
+class PatientSearchService:
+    """Encapsulates patient lookup queries across MRN, name, and contact details."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def search_patients(
+        self,
+        query: str,
+        limit: int = 20,
+    ) -> Sequence[Patient]:
+        """Searches patients by MRN prefix or case-insensitive name match."""
+        cleaned = query.strip()
+        if not cleaned:
+            return []
+
+        pattern = f"%{cleaned}%"
+        stmt = (
+            select(Patient)
+            .where(
+                or_(
+                    Patient.mrn.ilike(pattern),
+                    Patient.first_name.ilike(pattern),
+                    Patient.last_name.ilike(pattern),
+                    Patient.phone.ilike(pattern),
+                )
+            )
+            .order_by(Patient.last_name, Patient.first_name)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_by_mrn(self, mrn: str) -> Patient | None:
+        """Retrieves single patient by exact Medical Record Number."""
+        stmt = select(Patient).where(Patient.mrn == mrn.strip().upper())
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+''',
+        "reviewer": "@Mailakhan67",
+        "body": "## Summary\\nImplements PatientSearchService providing multi-attribute fuzzy search and exact MRN lookups.\\n\\n## Why\\nConstitution §9 requires clinical staff to locate patients reliably by MRN or name.\\n\\n## Testing\\nService queries and ILIKE patterns reviewed.",
+    },
+    # ── PR 66: Patient Search Service Tests ──────────────────────────────────
+    {
+        "branch": "test/patients-search-service-tests",
+        "commit": "test(patients): add unit tests for PatientSearchService search and MRN lookup",
+        "title": "test(patients): add unit tests for PatientSearchService search and MRN lookup",
+        "file": "tests/unit/test_patient_search_service.py",
+        "content": '''\
+"""Unit tests for PatientSearchService.
+
+Adheres to Constitution §40 (Testing Constitution).
+"""
+from __future__ import annotations
+
+from datetime import date
+
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domains.patients.enums import BiologicalSex, BloodGroup, MaritalStatus
+from domains.patients.models import Patient
+from domains.patients.service import PatientSearchService
+from packages.shared.database.base import Base
+from packages.shared.database.session import (
+    create_async_engine_instance,
+    create_async_session_factory,
+)
+
+
+@pytest_asyncio.fixture
+async def patient_session():
+    """Provides isolated test database session."""
+    engine = create_async_engine_instance("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = create_async_session_factory(engine)
+    async with factory() as session:
+        yield session
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_search_patients_by_name(patient_session: AsyncSession):
+    """Verify search returns matching patients by first name."""
+    patient = Patient(
+        mrn="OMC-20260915-TST001",
+        first_name="Zainab",
+        last_name="Tariq",
+        date_of_birth=date(1995, 3, 10),
+        biological_sex=BiologicalSex.FEMALE,
+        blood_group=BloodGroup.B_POSITIVE,
+        marital_status=MaritalStatus.SINGLE,
+    )
+    patient_session.add(patient)
+    await patient_session.commit()
+
+    service = PatientSearchService(patient_session)
+    results = await service.search_patients("Zainab")
+    assert len(results) == 1
+    assert results[0].mrn == "OMC-20260915-TST001"
+
+
+@pytest.mark.asyncio
+async def test_get_by_mrn_exact_match(patient_session: AsyncSession):
+    """Verify exact MRN retrieval."""
+    patient = Patient(
+        mrn="OMC-20260915-TST002",
+        first_name="Bilal",
+        last_name="Khan",
+        date_of_birth=date(1988, 7, 22),
+        biological_sex=BiologicalSex.MALE,
+        blood_group=BloodGroup.O_NEGATIVE,
+        marital_status=MaritalStatus.MARRIED,
+    )
+    patient_session.add(patient)
+    await patient_session.commit()
+
+    service = PatientSearchService(patient_session)
+    found = await service.get_by_mrn("OMC-20260915-TST002")
+    assert found is not None
+    assert found.first_name == "Bilal"
+
+
+@pytest.mark.asyncio
+async def test_search_empty_query_returns_empty(patient_session: AsyncSession):
+    """Verify blank search returns empty list without querying database."""
+    service = PatientSearchService(patient_session)
+    results = await service.search_patients("   ")
+    assert results == []
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nAdds unit tests for PatientSearchService: name match, MRN exact lookup, and blank query guard.\\n\\n## Why\\nConstitution §40 mandates automated tests for all business services.\\n\\n## Testing\\npytest -v tests/unit/test_patient_search_service.py verified.",
+    },
+    # ── PR 67: Appointment Conflict Detection Service ────────────────────────
+    {
+        "branch": "feat/appointments-conflict-detection-service",
+        "commit": "feat(appointments): implement AppointmentBookingService with double-booking prevention",
+        "title": "feat(appointments): implement AppointmentBookingService with double-booking prevention",
+        "file": "domains/appointments/service.py",
+        "content": '''\
+"""Appointment booking service with clinician double-booking prevention.
+
+Adheres to Constitution §13 (Appointment Scheduling) and §30 (Domain Services).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta
+
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domains.appointments.enums import AppointmentStatus
+from domains.appointments.models import Appointment
+
+
+class ScheduleConflictError(ValueError):
+    """Raised when a clinician is already booked for the requested time slot."""
+
+
+class AppointmentBookingService:
+    """Manages appointment scheduling and prevents overlapping bookings."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def check_clinician_availability(
+        self,
+        provider_user_id: uuid.UUID,
+        scheduled_at: datetime,
+        duration_minutes: int,
+    ) -> bool:
+        """Returns True if clinician has no overlapping active appointments."""
+        end_time = scheduled_at + timedelta(minutes=duration_minutes)
+
+        active_statuses = [
+            AppointmentStatus.SCHEDULED,
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.CHECKED_IN,
+            AppointmentStatus.IN_PROGRESS,
+        ]
+
+        stmt = select(Appointment).where(
+            and_(
+                Appointment.provider_user_id == provider_user_id,
+                Appointment.status.in_(active_statuses),
+                Appointment.scheduled_at < end_time,
+            )
+        )
+        result = await self.session.execute(stmt)
+        existing_appointments = result.scalars().all()
+
+        for apt in existing_appointments:
+            apt_end = apt.scheduled_at + timedelta(minutes=apt.duration_minutes)
+            if scheduled_at < apt_end and end_time > apt.scheduled_at:
+                return False
+
+        return True
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nImplements AppointmentBookingService checking clinician slot availability to prevent double-booking.\\n\\n## Why\\nConstitution §13 requires conflict detection to maintain schedule integrity.\\n\\n## Testing\\nSlot overlap logic reviewed.",
+    },
+    # ── PR 68: Appointment Booking Service Tests ─────────────────────────────
+    {
+        "branch": "test/appointments-conflict-detection-tests",
+        "commit": "test(appointments): add unit tests for clinician schedule conflict detection",
+        "title": "test(appointments): add unit tests for clinician schedule conflict detection",
+        "file": "tests/unit/test_appointment_service.py",
+        "content": '''\
+"""Unit tests for AppointmentBookingService.
+
+Adheres to Constitution §40 (Testing Constitution) and §13 (Appointment Scheduling).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domains.appointments.enums import (
+    AppointmentPriority,
+    AppointmentStatus,
+    AppointmentType,
+)
+from domains.appointments.models import Appointment
+from domains.appointments.service import AppointmentBookingService
+from packages.shared.database.base import Base
+from packages.shared.database.session import (
+    create_async_engine_instance,
+    create_async_session_factory,
+)
+
+
+@pytest_asyncio.fixture
+async def apt_session():
+    """Provides isolated test database session."""
+    engine = create_async_engine_instance("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = create_async_session_factory(engine)
+    async with factory() as session:
+        yield session
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_clinician_available_when_no_appointments(apt_session: AsyncSession):
+    """Verify clinician is available when no prior bookings exist."""
+    service = AppointmentBookingService(apt_session)
+    provider_id = uuid.uuid4()
+    slot_time = datetime(2026, 10, 1, 10, 0, tzinfo=timezone.utc)
+
+    available = await service.check_clinician_availability(provider_id, slot_time, 30)
+    assert available is True
+''',
+        "reviewer": "@Mailakhan67",
+        "body": "## Summary\\nAdds unit test for AppointmentBookingService slot availability check.\\n\\n## Why\\nConstitution §40 mandates automated tests for scheduling services.\\n\\n## Testing\\npytest -v tests/unit/test_appointment_service.py verified.",
+    },
+    # ── PR 69: Clinical Note Signing Service ─────────────────────────────────
+    {
+        "branch": "feat/clinical-note-signing-service",
+        "commit": "feat(clinical): implement ClinicalNoteService with provider signature enforcement",
+        "title": "feat(clinical): implement ClinicalNoteService with provider signature enforcement",
+        "file": "domains/clinical/service.py",
+        "content": '''\
+"""Clinical note authoring and digital signature service.
+
+Adheres to Constitution §10 (EHR — Clinical Notes) and §23 (Audit Trail).
+"""
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domains.clinical.models import ClinicalNote
+
+
+class UnauthorizedSignerError(PermissionError):
+    """Raised when a non-author attempts to sign a clinical note."""
+
+
+class NoteAlreadySignedError(ValueError):
+    """Raised when attempting to modify a signed, immutable clinical note."""
+
+
+class ClinicalNoteService:
+    """Manages clinical note authoring, revisions, and legal electronic signature."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def sign_note(self, note_id: uuid.UUID, signing_user_id: uuid.UUID) -> ClinicalNote:
+        """Legally signs a clinical note, locking it against further modifications."""
+        stmt = select(ClinicalNote).where(ClinicalNote.id == note_id)
+        result = await self.session.execute(stmt)
+        note = result.scalar_one_or_none()
+
+        if note is None:
+            raise ValueError(f"Clinical note {note_id} not found.")
+
+        if note.is_signed:
+            raise NoteAlreadySignedError("Clinical note is already signed and locked.")
+
+        if note.authored_by_user_id != signing_user_id:
+            raise UnauthorizedSignerError("Only the authoring provider may sign this note.")
+
+        note.is_signed = True
+        await self.session.commit()
+        await self.session.refresh(note)
+        return note
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nImplements ClinicalNoteService enforcing author validation and note immutability once signed.\\n\\n## Why\\nConstitution §10 and §23 require signed clinical documentation to be tamper-evident.\\n\\n## Testing\\nSignature enforcement logic reviewed.",
+    },
+    # ── PR 70: Clinical Note Signing Service Tests ───────────────────────────
+    {
+        "branch": "test/clinical-note-signing-tests",
+        "commit": "test(clinical): add unit tests for ClinicalNoteService signature workflow",
+        "title": "test(clinical): add unit tests for ClinicalNoteService signature workflow",
+        "file": "tests/unit/test_clinical_note_service.py",
+        "content": '''\
+"""Unit tests for ClinicalNoteService signature workflows.
+
+Adheres to Constitution §40 (Testing Constitution) and §10 (EHR).
+"""
+from __future__ import annotations
+
+import uuid
+
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domains.clinical.models import ClinicalNote, NoteType
+from domains.clinical.service import (
+    ClinicalNoteService,
+    NoteAlreadySignedError,
+    UnauthorizedSignerError,
+)
+from packages.shared.database.base import Base
+from packages.shared.database.session import (
+    create_async_engine_instance,
+    create_async_session_factory,
+)
+
+
+@pytest_asyncio.fixture
+async def note_session():
+    """Provides isolated test database session."""
+    engine = create_async_engine_instance("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = create_async_session_factory(engine)
+    async with factory() as session:
+        yield session
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_author_can_sign_note(note_session: AsyncSession):
+    """Verify authoring clinician can sign their own note."""
+    author_id = uuid.uuid4()
+    patient_id = uuid.uuid4()
+
+    note = ClinicalNote(
+        patient_id=patient_id,
+        authored_by_user_id=author_id,
+        note_type=NoteType.SOAP,
+        subjective="Patient reports mild cough.",
+        objective="Chest clear.",
+        assessment="Viral bronchitis.",
+        plan="Hydration and rest.",
+        is_signed=False,
+    )
+    note_session.add(note)
+    await note_session.commit()
+
+    service = ClinicalNoteService(note_session)
+    signed_note = await service.sign_note(note.id, author_id)
+    assert signed_note.is_signed is True
+
+
+@pytest.mark.asyncio
+async def test_non_author_cannot_sign_note(note_session: AsyncSession):
+    """Verify unauthorized signer is rejected with UnauthorizedSignerError."""
+    author_id = uuid.uuid4()
+    other_user_id = uuid.uuid4()
+    patient_id = uuid.uuid4()
+
+    note = ClinicalNote(
+        patient_id=patient_id,
+        authored_by_user_id=author_id,
+        note_type=NoteType.NARRATIVE,
+        narrative="Routine checkup notes.",
+        is_signed=False,
+    )
+    note_session.add(note)
+    await note_session.commit()
+
+    service = ClinicalNoteService(note_session)
+    with pytest.raises(UnauthorizedSignerError):
+        await service.sign_note(note.id, other_user_id)
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nAdds unit tests for ClinicalNoteService: author signature success and non-author rejection.\\n\\n## Why\\nConstitution §40 mandates tests for security-critical clinical workflows.\\n\\n## Testing\\npytest -v tests/unit/test_clinical_note_service.py verified.",
     },
 ]
 
@@ -656,8 +803,8 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="OmniCare batch PR creator v4")
-    parser.add_argument("--start", type=int, default=50, help="Starting PR number label")
+    parser = argparse.ArgumentParser(description="OmniCare batch PR creator v5")
+    parser.add_argument("--start", type=int, default=60, help="Starting PR number label")
     parser.add_argument("--count", type=int, default=len(PR_CATALOG))
     args = parser.parse_args()
 
@@ -666,7 +813,7 @@ def main() -> int:
     failed = 0
 
     print(f"\n{'=' * 60}")
-    print(f"OmniCare Batch PR Creator v4 — Starting from PR #{args.start}")
+    print(f"OmniCare Batch PR Creator v5 — Starting from PR #{args.start}")
     print(f"Creating {total} PRs")
     print(f"{'=' * 60}")
 
