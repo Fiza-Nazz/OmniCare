@@ -30,6 +30,8 @@ ignore = [
     "E501",  # Line length handled cleanly by formatter
     "S101",  # Allow assert in test files
     "S104",  # Allow binding to 0.0.0.0 for Docker containers
+    "S105",  # Allow string literals named token_type, token, etc. — not real passwords
+    "S602",  # Allow subprocess shell=True in automation scripts
     "B008",  # Allow Depends() in FastAPI function arguments
 ]
 
@@ -38,7 +40,7 @@ unfixable = []
 
 [lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]  # Allow assert and synthetic test credentials in test suite
-"scripts/**" = ["T201"]                # Allow print in CLI utility scripts
+"scripts/**" = ["T201", "S602", "S603"]  # Allow print and subprocess in CLI utility scripts
 
 [lint.isort]
 known-first-party = ["services", "domains", "packages"]
