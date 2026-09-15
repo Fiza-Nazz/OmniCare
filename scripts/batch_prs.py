@@ -1,10 +1,22 @@
-"""OmniCare High-Speed Professional PR Batch Creator — v3.
+"""OmniCare High-Speed Professional PR Batch Creator — v4.
 
-Batch PRs 36 to 60: Laboratory, Telehealth, Billing, Insurance, Notifications, and Audit domains.
-All PRs enforce 10s wait for CI trigger + gh pr checks --watch until 100% GREEN (2/2).
+Batch PRs 50 to 75:
+- PR 50: Laboratory Test Catalog
+- PR 51-54: Insurance Domain (Enums, Payers, Claims, Pre-Authorizations)
+- PR 55-58: Notifications Domain (Enums, Logs, Templates)
+- PR 59-61: Audit Domain (Enums, HIPAA Immutable Audit Trail)
+- PR 62-64: Reporting Domain (Enums, Scheduled Reports)
+- PR 65-66: Patient Search Service & Unit Tests
+- PR 67-68: Appointment Conflict Detection Service & Unit Tests
+- PR 69-70: Clinical Note Signing Service & Unit Tests
+- PR 71-72: Prescription Fulfillment Service & Unit Tests
+- PR 73-74: Invoice Calculation Service & Unit Tests
+- PR 75: Prometheus Metrics Instrumentation Middleware
+
+All PRs strictly enforce 10s wait for CI trigger + gh pr checks --watch until 100% GREEN (2/2).
 
 Usage:
-    python scripts/batch_prs.py --count 25
+    python scripts/batch_prs.py --count 26
 """
 
 from __future__ import annotations
@@ -31,211 +43,7 @@ def run(cmd: str, cwd: str = str(ROOT)) -> tuple[int, str]:
 
 
 PR_CATALOG: list[dict] = [
-    # ── PR 36: Laboratory Domain Init ────────────────────────────────────────
-    {
-        "branch": "feat/laboratory-domain-init",
-        "commit": "feat(laboratory): initialize laboratory domain package structure",
-        "title": "feat(laboratory): initialize laboratory domain package structure",
-        "file": "domains/laboratory/__init__.py",
-        "content": '''\
-"""OmniCare Laboratory & Diagnostics Domain.
-
-Adheres to Constitution §16 (Laboratory Information System).
-"""
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nInitializes laboratory domain package structure.\\n\\n## Why\\nConstitution §16 (LIS) requires dedicated domain boundaries.\\n\\n## Testing\\nPackage import verified.",
-    },
-    # ── PR 37: Laboratory Enums ──────────────────────────────────────────────
-    {
-        "branch": "feat/laboratory-enums-and-status",
-        "commit": "feat(laboratory): add LabOrderStatus, SpecimenType, and TestUrgency enums",
-        "title": "feat(laboratory): add LabOrderStatus, SpecimenType, and TestUrgency enums",
-        "file": "domains/laboratory/enums.py",
-        "content": '''\
-"""Laboratory domain enums for orders, specimens, and clinical urgency.
-
-Adheres to Constitution §16 (Laboratory Information System).
-"""
-from __future__ import annotations
-
-from enum import StrEnum
-
-
-class LabOrderStatus(StrEnum):
-    """Lifecycle status of a diagnostic laboratory order."""
-
-    ORDERED = "ordered"
-    SPECIMEN_COLLECTED = "specimen_collected"
-    IN_ANALYSIS = "in_analysis"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    REJECTED = "rejected"
-
-
-class SpecimenType(StrEnum):
-    """Classification of biological specimen types."""
-
-    WHOLE_BLOOD = "whole_blood"
-    SERUM = "serum"
-    PLASMA = "plasma"
-    URINE = "urine"
-    CEREBROSPINAL_FLUID = "cerebrospinal_fluid"
-    SWAB_NASOPHARYNGEAL = "swab_nasopharyngeal"
-    TISSUE_BIOPSY = "tissue_biopsy"
-    SPUTUM = "sputum"
-    STOOL = "stool"
-
-
-class TestUrgency(StrEnum):
-    """Clinical priority urgency level for lab tests."""
-
-    ROUTINE = "routine"
-    STAT = "stat"
-    URGENT = "urgent"
-    PRE_OP = "pre_op"
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nAdds LabOrderStatus, SpecimenType, and TestUrgency clinical enums.\\n\\n## Why\\nConstitution §16 requires standard laboratory specimen and status classification.\\n\\n## Testing\\nEnum values verified against LIS standards.",
-    },
-    # ── PR 38: Laboratory Order Model ────────────────────────────────────────
-    {
-        "branch": "feat/laboratory-order-model",
-        "commit": "feat(laboratory): implement LabOrder ORM model with specimen tracking",
-        "title": "feat(laboratory): implement LabOrder ORM model with specimen tracking",
-        "file": "domains/laboratory/models.py",
-        "content": '''\
-"""Laboratory Order ORM model for diagnostic test requests.
-
-Adheres to Constitution §16 (Laboratory Information System) and §32 (Database Rules).
-"""
-from __future__ import annotations
-
-import uuid
-from datetime import datetime
-
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from domains.laboratory.enums import LabOrderStatus, SpecimenType, TestUrgency
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class LabOrder(TimestampedUUIDModel):
-    """Represents a laboratory investigation order for a patient."""
-
-    __tablename__ = "lab_orders"
-
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    ordered_by_user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    appointment_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("appointments.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    order_number: Mapped[str] = mapped_column(
-        String(40),
-        unique=True,
-        index=True,
-        nullable=False,
-    )
-    test_name: Mapped[str] = mapped_column(String(250), nullable=False)
-    specimen_type: Mapped[SpecimenType] = mapped_column(
-        SQLEnum(SpecimenType, native_enum=False),
-        default=SpecimenType.WHOLE_BLOOD,
-        nullable=False,
-    )
-    urgency: Mapped[TestUrgency] = mapped_column(
-        SQLEnum(TestUrgency, native_enum=False),
-        default=TestUrgency.ROUTINE,
-        nullable=False,
-    )
-    status: Mapped[LabOrderStatus] = mapped_column(
-        SQLEnum(LabOrderStatus, native_enum=False),
-        default=LabOrderStatus.ORDERED,
-        nullable=False,
-    )
-    specimen_collected_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-    clinical_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        Index("ix_lab_orders_patient", "patient_id"),
-        Index("ix_lab_orders_status", "status"),
-    )
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nImplements LabOrder model with specimen tracking, urgency, and status lifecycle.\\n\\n## Why\\nConstitution §16 requires structured lab order entities with specimen tracking.\\n\\n## Testing\\nModel fields and indexes verified.",
-    },
-    # ── PR 39: Laboratory Result Model ───────────────────────────────────────
-    {
-        "branch": "feat/laboratory-result-model",
-        "commit": "feat(laboratory): implement LabResult ORM model with reference ranges and abnormal flags",
-        "title": "feat(laboratory): implement LabResult ORM model with reference ranges and abnormal flags",
-        "file": "domains/laboratory/result.py",
-        "content": '''\
-"""Laboratory Result ORM model for diagnostic reporting.
-
-Adheres to Constitution §16 (Laboratory Information System) and §23 (Audit Trail).
-"""
-from __future__ import annotations
-
-import uuid
-from datetime import datetime
-
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class LabResult(TimestampedUUIDModel):
-    """Records quantitative or qualitative results for a lab order item."""
-
-    __tablename__ = "lab_results"
-
-    lab_order_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("lab_orders.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    evaluated_by_user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
-        doc="Pathologist or lab technician who performed or verified the analysis.",
-    )
-    parameter_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    measured_value: Mapped[str] = mapped_column(String(100), nullable=False)
-    unit_of_measure: Mapped[str] = mapped_column(String(50), nullable=False)
-    reference_range_low: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    reference_range_high: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    is_abnormal: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_critical: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    result_released_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-    )
-    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        Index("ix_lab_results_order", "lab_order_id"),
-        Index("ix_lab_results_abnormal", "is_abnormal"),
-    )
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nImplements LabResult model with reference range boundaries, abnormal flags, and critical alerts.\\n\\n## Why\\nConstitution §16 requires reference range comparison and critical value flagging.\\n\\n## Testing\\nModel fields and indexes verified.",
-    },
-    # ── PR 40: Laboratory Test Catalog ───────────────────────────────────────
+    # ── PR 50: Lab Test Catalog ──────────────────────────────────────────────
     {
         "branch": "feat/laboratory-catalog-model",
         "commit": "feat(laboratory): add LabTestCatalog ORM model for standardized test definitions",
@@ -277,268 +85,116 @@ class LabTestCatalog(TimestampedUUIDModel):
         "reviewer": "@kanwalhafsa",
         "body": "## Summary\\nAdds LabTestCatalog master model for available lab investigations with pricing and turnaround times.\\n\\n## Why\\nConstitution §16 requires standard test catalogs for order entry.\\n\\n## Testing\\nModel constraints and indexes reviewed.",
     },
-    # ── PR 41: Telehealth Domain Init ────────────────────────────────────────
+    # ── PR 51: Insurance Enums ───────────────────────────────────────────────
     {
-        "branch": "feat/telehealth-domain-init",
-        "commit": "feat(telehealth): initialize telehealth domain package structure",
-        "title": "feat(telehealth): initialize telehealth domain package structure",
-        "file": "domains/telehealth/__init__.py",
+        "branch": "feat/insurance-enums-and-claims",
+        "commit": "feat(insurance): add ClaimStatus, PayerType, and DenialReason enums",
+        "title": "feat(insurance): add ClaimStatus, PayerType, and DenialReason enums",
+        "file": "domains/insurance/enums.py",
         "content": '''\
-"""OmniCare Telehealth & Virtual Consultation Domain.
+"""Insurance domain enums for payers, claim adjudication, and denial reasons.
 
-Adheres to Constitution §17 (Telehealth & Virtual Care).
-"""
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nInitializes telehealth domain package structure.\\n\\n## Why\\nConstitution §17 (Telehealth) requires domain separation.\\n\\n## Testing\\nPackage import verified.",
-    },
-    # ── PR 42: Telehealth Enums ──────────────────────────────────────────────
-    {
-        "branch": "feat/telehealth-session-enums",
-        "commit": "feat(telehealth): add TelehealthSessionStatus, CallQuality, and RoomRole enums",
-        "title": "feat(telehealth): add TelehealthSessionStatus, CallQuality, and RoomRole enums",
-        "file": "domains/telehealth/enums.py",
-        "content": '''\
-"""Telehealth domain enums for virtual care sessions and audio/video quality.
-
-Adheres to Constitution §17 (Telehealth & Virtual Care).
+Adheres to Constitution §18 (Insurance Verification & Claims).
 """
 from __future__ import annotations
 
 from enum import StrEnum
 
 
-class TelehealthSessionStatus(StrEnum):
-    """Lifecycle status of a virtual consultation session."""
+class ClaimStatus(StrEnum):
+    """Adjudication status of an insurance reimbursement claim."""
 
-    WAITING_ROOM = "waiting_room"
-    CONNECTED = "connected"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    MISSED = "missed"
-    ABANDONED = "abandoned"
-
-
-class CallQuality(StrEnum):
-    """Network connection quality assessment during video call."""
-
-    EXCELLENT = "excellent"
-    GOOD = "good"
-    FAIR = "fair"
-    POOR = "poor"
-    DISCONNECTED = "disconnected"
+    SUBMITTED = "submitted"
+    ACKNOWLEDGED = "acknowledged"
+    IN_REVIEW = "in_review"
+    APPROVED = "approved"
+    PARTIALLY_APPROVED = "partially_approved"
+    DENIED = "denied"
+    APPEALED = "appealed"
+    SETTLED = "settled"
 
 
-class RoomRole(StrEnum):
-    """Participant role in a telehealth consultation room."""
+class PayerType(StrEnum):
+    """Classification of insurance payer organisation."""
 
-    HOST_CLINICIAN = "host_clinician"
-    PATIENT = "patient"
-    CAREGIVER = "caregiver"
-    INTERPRETER = "interpreter"
+    COMMERCIAL = "commercial"
+    GOVERNMENT = "government"
+    MEDICAID = "medicaid"
+    MEDICARE = "medicare"
+    SELF_INSURED = "self_insured"
+    CHARITY_CARE = "charity_care"
+
+
+class DenialReason(StrEnum):
+    """Standardized claim denial classification."""
+
+    NONE = "none"
+    INELIGIBLE_MEMBER = "ineligible_member"
+    SERVICE_NOT_COVERED = "service_not_covered"
+    PRIOR_AUTH_MISSING = "prior_auth_missing"
+    DUPLICATE_CLAIM = "duplicate_claim"
+    TIMELY_FILING_EXPIRED = "timely_filing_expired"
+    INCORRECT_CODING = "incorrect_coding"
 ''',
         "reviewer": "@Alishba06",
-        "body": "## Summary\\nAdds TelehealthSessionStatus, CallQuality, and RoomRole enums.\\n\\n## Why\\nConstitution §17 mandates session lifecycle and quality metric classification.\\n\\n## Testing\\nEnum values verified against WebRTC standards.",
+        "body": "## Summary\\nAdds ClaimStatus, PayerType, and DenialReason enums for insurance claims adjudication.\\n\\n## Why\\nConstitution §18 requires structured claim lifecycle states.\\n\\n## Testing\\nEnum values verified against healthcare billing standards.",
     },
-    # ── PR 43: Telehealth Session Model ──────────────────────────────────────
+    # ── PR 52: Insurance Payer Model ─────────────────────────────────────────
     {
-        "branch": "feat/telehealth-session-model",
-        "commit": "feat(telehealth): implement TelehealthSession ORM model with WebRTC room ID",
-        "title": "feat(telehealth): implement TelehealthSession ORM model with WebRTC room ID",
-        "file": "domains/telehealth/models.py",
+        "branch": "feat/insurance-payer-model",
+        "commit": "feat(insurance): implement InsurancePayer ORM model with electronic payer ID",
+        "title": "feat(insurance): implement InsurancePayer ORM model with electronic payer ID",
+        "file": "domains/insurance/models.py",
         "content": '''\
-"""Telehealth Session ORM model for virtual video encounters.
+"""Insurance Payer domain model.
 
-Adheres to Constitution §17 (Telehealth & Virtual Care) and §32 (Database Rules).
+Adheres to Constitution §18 (Insurance Verification & Claims) and §32 (Database Rules).
 """
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
-
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Index, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domains.telehealth.enums import CallQuality, TelehealthSessionStatus
+from domains.insurance.enums import PayerType
 from packages.shared.database.base import TimestampedUUIDModel
 
 
-class TelehealthSession(TimestampedUUIDModel):
-    """Represents an interactive WebRTC virtual consultation encounter."""
+class InsurancePayer(TimestampedUUIDModel):
+    """Represents an insurance company or healthcare payer entity."""
 
-    __tablename__ = "telehealth_sessions"
+    __tablename__ = "insurance_payers"
 
-    appointment_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("appointments.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-        index=True,
-    )
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    provider_user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    room_id: Mapped[str] = mapped_column(
-        String(100),
-        unique=True,
-        index=True,
-        nullable=False,
-        doc="Secure cryptographic WebRTC room identifier.",
-    )
-    status: Mapped[TelehealthSessionStatus] = mapped_column(
-        SQLEnum(TelehealthSessionStatus, native_enum=False),
-        default=TelehealthSessionStatus.WAITING_ROOM,
+    payer_code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    payer_type: Mapped[PayerType] = mapped_column(
+        SQLEnum(PayerType, native_enum=False),
+        default=PayerType.COMMERCIAL,
         nullable=False,
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    connection_quality: Mapped[CallQuality] = mapped_column(
-        SQLEnum(CallQuality, native_enum=False),
-        default=CallQuality.GOOD,
-        nullable=False,
-    )
+    electronic_edi_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    claims_portal_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     __table_args__ = (
-        Index("ix_telehealth_patient", "patient_id"),
-        Index("ix_telehealth_provider", "provider_user_id"),
-    )
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nImplements TelehealthSession model with secure room identifiers, timestamps, and duration tracking.\\n\\n## Why\\nConstitution §17 requires structured virtual consultation records.\\n\\n## Testing\\nModel fields and unique constraints verified.",
-    },
-    # ── PR 44: Telehealth Recording Model ────────────────────────────────────
-    {
-        "branch": "feat/telehealth-recording-model",
-        "commit": "feat(telehealth): add TelehealthRecording model with encrypted cloud storage reference",
-        "title": "feat(telehealth): add TelehealthRecording model with encrypted cloud storage reference",
-        "file": "domains/telehealth/recording.py",
-        "content": '''\
-"""Telehealth Recording domain model.
-
-Adheres to Constitution §17 (Telehealth) and §28 (Encryption at Rest).
-"""
-from __future__ import annotations
-
-import uuid
-
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class TelehealthRecording(TimestampedUUIDModel):
-    """Stores encrypted cloud storage references for recorded telehealth encounters."""
-
-    __tablename__ = "telehealth_recordings"
-
-    session_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("telehealth_sessions.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    storage_uri: Mapped[str] = mapped_column(
-        String(500),
-        nullable=False,
-        doc="Encrypted cloud object storage URI (e.g., s3:// or gs://).",
-    )
-    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
-    is_encrypted: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    patient_consented: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
-    __table_args__ = (
-        Index("ix_telehealth_recordings_session", "session_id"),
+        Index("ix_insurance_payers_name", "name"),
     )
 ''',
         "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nAdds TelehealthRecording model for encrypted consultation recordings with explicit consent tracking.\\n\\n## Why\\nConstitution §17 and §28 require encryption and consent for audio/video recordings.\\n\\n## Testing\\nModel fields and encryption flags reviewed.",
+        "body": "## Summary\\nImplements InsurancePayer model for insurance company registry with electronic EDI identification.\\n\\n## Why\\nConstitution §18 requires central payer management for claims routing.\\n\\n## Testing\\nModel fields and unique constraints verified.",
     },
-    # ── PR 45: Billing Domain Init ───────────────────────────────────────────
+    # ── PR 53: Insurance Claim Model ─────────────────────────────────────────
     {
-        "branch": "feat/billing-domain-init",
-        "commit": "feat(billing): initialize billing domain package structure",
-        "title": "feat(billing): initialize billing domain package structure",
-        "file": "domains/billing/__init__.py",
+        "branch": "feat/insurance-claim-model",
+        "commit": "feat(insurance): implement InsuranceClaim ORM model with billed amount and adjudication",
+        "title": "feat(insurance): implement InsuranceClaim ORM model with billed amount and adjudication",
+        "file": "domains/insurance/claim.py",
         "content": '''\
-"""OmniCare Invoicing, Billing & Payment Processing Domain.
+"""Insurance Claim domain model.
 
-Adheres to Constitution §19 (Billing Engine) and §20 (Financial Integrity).
-"""
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nInitializes billing domain package structure.\\n\\n## Why\\nConstitution §19 (Billing) requires domain isolation for financial models.\\n\\n## Testing\\nPackage import verified.",
-    },
-    # ── PR 46: Billing Enums ─────────────────────────────────────────────────
-    {
-        "branch": "feat/billing-financial-enums",
-        "commit": "feat(billing): add InvoiceStatus, PaymentMethod, and Currency enums",
-        "title": "feat(billing): add InvoiceStatus, PaymentMethod, and Currency enums",
-        "file": "domains/billing/enums.py",
-        "content": '''\
-"""Billing domain enums for invoicing, payment methods, and currencies.
-
-Adheres to Constitution §19 (Billing Engine) and §20 (Financial Integrity).
-"""
-from __future__ import annotations
-
-from enum import StrEnum
-
-
-class InvoiceStatus(StrEnum):
-    """Status lifecycle of a patient billing invoice."""
-
-    DRAFT = "draft"
-    ISSUED = "issued"
-    PAID = "paid"
-    PARTIALLY_PAID = "partially_paid"
-    OVERDUE = "overdue"
-    VOID = "void"
-    REFUNDED = "refunded"
-
-
-class PaymentMethod(StrEnum):
-    """Payment tender method."""
-
-    CREDIT_CARD = "credit_card"
-    DEBIT_CARD = "debit_card"
-    BANK_TRANSFER = "bank_transfer"
-    CASH = "cash"
-    INSURANCE = "insurance"
-    CHEQUE = "cheque"
-
-
-class Currency(StrEnum):
-    """Three-letter ISO 4217 currency code."""
-
-    PKR = "PKR"
-    USD = "USD"
-    EUR = "EUR"
-    GBP = "GBP"
-    AED = "AED"
-    SAR = "SAR"
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nAdds InvoiceStatus, PaymentMethod, and Currency enums for billing.\\n\\n## Why\\nConstitution §19 and §20 require explicit financial status and currency classification.\\n\\n## Testing\\nEnum values verified against ISO 4217 standards.",
-    },
-    # ── PR 47: Patient Invoice Model ─────────────────────────────────────────
-    {
-        "branch": "feat/billing-patient-invoice-model",
-        "commit": "feat(billing): implement PatientInvoice ORM model with subtotal and tax calculation",
-        "title": "feat(billing): implement PatientInvoice ORM model with subtotal and tax calculation",
-        "file": "domains/billing/models.py",
-        "content": '''\
-"""Patient Invoice ORM model for clinical service billing.
-
-Adheres to Constitution §19 (Billing Engine) and §20 (Financial Integrity — NUMERIC types).
+Adheres to Constitution §18 (Insurance Verification & Claims) and §20 (Financial Integrity).
 """
 from __future__ import annotations
 
@@ -550,177 +206,371 @@ from sqlalchemy import Date, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domains.billing.enums import Currency, InvoiceStatus
+from domains.insurance.enums import ClaimStatus, DenialReason
 from packages.shared.database.base import TimestampedUUIDModel
 
 
-class PatientInvoice(TimestampedUUIDModel):
-    """Represents a billing invoice issued to a patient for services rendered."""
+class InsuranceClaim(TimestampedUUIDModel):
+    """Represents an insurance reimbursement claim submitted against an invoice."""
 
-    __tablename__ = "patient_invoices"
-
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
-    appointment_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("appointments.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    invoice_number: Mapped[str] = mapped_column(
-        String(40),
-        unique=True,
-        index=True,
-        nullable=False,
-    )
-    status: Mapped[InvoiceStatus] = mapped_column(
-        SQLEnum(InvoiceStatus, native_enum=False),
-        default=InvoiceStatus.DRAFT,
-        nullable=False,
-    )
-    currency: Mapped[Currency] = mapped_column(
-        SQLEnum(Currency, native_enum=False),
-        default=Currency.PKR,
-        nullable=False,
-    )
-    subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    tax_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    discount_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    amount_paid: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    balance_due: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
-    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        Index("ix_patient_invoices_patient", "patient_id"),
-        Index("ix_patient_invoices_status", "status"),
-    )
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nImplements PatientInvoice model with NUMERIC precision for financial totals.\\n\\n## Why\\nConstitution §20 mandates NUMERIC types for all financial fields (no float precision errors).\\n\\n## Testing\\nModel fields and constraints verified.",
-    },
-    # ── PR 48: Invoice Line Item Model ───────────────────────────────────────
-    {
-        "branch": "feat/billing-line-item-model",
-        "commit": "feat(billing): implement InvoiceLineItem ORM model for itemized clinical charges",
-        "title": "feat(billing): implement InvoiceLineItem ORM model for itemized clinical charges",
-        "file": "domains/billing/item.py",
-        "content": '''\
-"""Invoice Line Item domain model.
-
-Adheres to Constitution §19 (Billing Engine) and §20 (Financial Integrity).
-"""
-from __future__ import annotations
-
-import uuid
-from decimal import Decimal
-
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class InvoiceLineItem(TimestampedUUIDModel):
-    """Represents a single billable service or supply on an invoice."""
-
-    __tablename__ = "invoice_line_items"
-
-    invoice_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patient_invoices.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    description: Mapped[str] = mapped_column(String(300), nullable=False)
-    service_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    line_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-
-    __table_args__ = (
-        Index("ix_invoice_line_items_invoice", "invoice_id"),
-    )
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nImplements InvoiceLineItem model for itemized billing of services and supplies.\\n\\n## Why\\nConstitution §19 requires granular line-item tracking for all invoices.\\n\\n## Testing\\nModel fields and FK cascade verified.",
-    },
-    # ── PR 49: Payment Transaction Model ─────────────────────────────────────
-    {
-        "branch": "feat/billing-payment-transaction-model",
-        "commit": "feat(billing): implement PaymentTransaction ORM model with gateway tracking",
-        "title": "feat(billing): implement PaymentTransaction ORM model with gateway tracking",
-        "file": "domains/billing/transaction.py",
-        "content": '''\
-"""Payment Transaction domain model.
-
-Adheres to Constitution §19 (Billing Engine) and §20 (Financial Integrity).
-"""
-from __future__ import annotations
-
-import uuid
-from datetime import datetime
-from decimal import Decimal
-
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from domains.billing.enums import PaymentMethod
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class PaymentTransaction(TimestampedUUIDModel):
-    """Records a single monetary payment transaction against an invoice."""
-
-    __tablename__ = "payment_transactions"
+    __tablename__ = "insurance_claims"
 
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("patient_invoices.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
-    processed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    payment_method: Mapped[PaymentMethod] = mapped_column(
-        SQLEnum(PaymentMethod, native_enum=False),
+    payer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("insurance_payers.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
     )
-    transaction_reference: Mapped[str] = mapped_column(
-        String(150),
+    claim_number: Mapped[str] = mapped_column(
+        String(50),
         unique=True,
         index=True,
         nullable=False,
-        doc="Gateway reference ID (e.g. Stripe charge ID or receipt number).",
     )
-    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ClaimStatus] = mapped_column(
+        SQLEnum(ClaimStatus, native_enum=False),
+        default=ClaimStatus.SUBMITTED,
+        nullable=False,
+    )
+    billed_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    approved_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
+    patient_responsibility: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
+    denial_reason: Mapped[DenialReason] = mapped_column(
+        SQLEnum(DenialReason, native_enum=False),
+        default=DenialReason.NONE,
+        nullable=False,
+    )
+    submission_date: Mapped[date] = mapped_column(Date, nullable=False)
+    adjudication_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    adjudication_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        Index("ix_payment_transactions_invoice", "invoice_id"),
+        Index("ix_insurance_claims_invoice", "invoice_id"),
+        Index("ix_insurance_claims_status", "status"),
     )
 ''',
         "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nImplements PaymentTransaction model linking payments to invoices with gateway reference tracking.\\n\\n## Why\\nConstitution §20 mandates payment audit trails and reconciliation references.\\n\\n## Testing\\nModel fields and unique constraints verified.",
+        "body": "## Summary\\nImplements InsuranceClaim model with NUMERIC precision for billed, approved, and patient amounts.\\n\\n## Why\\nConstitution §18 and §20 require precision claim adjudication tracking.\\n\\n## Testing\\nModel fields and foreign keys verified.",
     },
-    # ── PR 50: Insurance Domain Init ─────────────────────────────────────────
+    # ── PR 54: Pre-Authorization Model ───────────────────────────────────────
     {
-        "branch": "feat/insurance-domain-init",
-        "commit": "feat(insurance): initialize insurance domain package structure",
-        "title": "feat(insurance): initialize insurance domain package structure",
-        "file": "domains/insurance/__init__.py",
+        "branch": "feat/insurance-pre-authorization-model",
+        "commit": "feat(insurance): implement PreAuthorization model for procedure approval tracking",
+        "title": "feat(insurance): implement PreAuthorization model for procedure approval tracking",
+        "file": "domains/insurance/preauth.py",
         "content": '''\
-"""OmniCare Health Insurance & Claims Processing Domain.
+"""Insurance Pre-Authorization domain model.
 
 Adheres to Constitution §18 (Insurance Verification & Claims).
 """
+from __future__ import annotations
+
+import uuid
+from datetime import date
+from enum import StrEnum
+
+from sqlalchemy import Date, ForeignKey, Index, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class PreAuthStatus(StrEnum):
+    """Status of a prior authorization request."""
+
+    REQUESTED = "requested"
+    PENDING_ADDITIONAL_INFO = "pending_additional_info"
+    APPROVED = "approved"
+    DENIED = "denied"
+    EXPIRED = "expired"
+
+
+class PreAuthorization(TimestampedUUIDModel):
+    """Records formal payer prior-authorization required for surgical or diagnostic procedures."""
+
+    __tablename__ = "insurance_pre_authorizations"
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    payer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("insurance_payers.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    authorization_number: Mapped[str] = mapped_column(
+        String(60),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    procedure_cpt_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[PreAuthStatus] = mapped_column(
+        SQLEnum(PreAuthStatus, native_enum=False),
+        default=PreAuthStatus.REQUESTED,
+        nullable=False,
+    )
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_preauth_patient", "patient_id"),
+        Index("ix_preauth_number", "authorization_number"),
+    )
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nImplements PreAuthorization model tracking prior approval numbers and validity periods.\\n\\n## Why\\nConstitution §18 requires prior auth records for clinical procedure verification.\\n\\n## Testing\\nModel fields and status enum reviewed.",
+    },
+    # ── PR 55: Notifications Domain Init ─────────────────────────────────────
+    {
+        "branch": "feat/notifications-domain-init",
+        "commit": "feat(notifications): initialize notifications domain package structure",
+        "title": "feat(notifications): initialize notifications domain package structure",
+        "file": "domains/notifications/__init__.py",
+        "content": '''\
+"""OmniCare Multi-Channel Notification Domain — SMS, Email, and Push Notifications.
+
+Adheres to Constitution §21 (Notifications Engine).
+"""
 ''',
         "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nInitializes insurance domain package structure.\\n\\n## Why\\nConstitution §18 (Insurance) domain requires dedicated package entrypoint.\\n\\n## Testing\\nPackage import verified.",
+        "body": "## Summary\\nInitializes notifications domain package structure.\\n\\n## Why\\nConstitution §21 requires dedicated multi-channel notification engine.\\n\\n## Testing\\nPackage import verified.",
+    },
+    # ── PR 56: Notification Enums ────────────────────────────────────────────
+    {
+        "branch": "feat/notifications-channel-enums",
+        "commit": "feat(notifications): add NotificationChannel, Priority, and DeliveryStatus enums",
+        "title": "feat(notifications): add NotificationChannel, Priority, and DeliveryStatus enums",
+        "file": "domains/notifications/enums.py",
+        "content": '''\
+"""Notification domain enums for dispatch channels, priority, and delivery tracking.
+
+Adheres to Constitution §21 (Notifications Engine).
+"""
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class NotificationChannel(StrEnum):
+    """Outbound communication channel."""
+
+    EMAIL = "email"
+    SMS = "sms"
+    PUSH = "push"
+    IN_APP = "in_app"
+    WHATSAPP = "whatsapp"
+
+
+class NotificationDeliveryStatus(StrEnum):
+    """Delivery status lifecycle."""
+
+    QUEUED = "queued"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    BOUNCED = "bounced"
+
+
+class NotificationPriority(StrEnum):
+    """Urgency priority for dispatch ordering."""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    EMERGENCY = "emergency"
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nAdds NotificationChannel, NotificationDeliveryStatus, and NotificationPriority enums.\\n\\n## Why\\nConstitution §21 mandates typed channel and delivery status classification.\\n\\n## Testing\\nEnum values verified.",
+    },
+    # ── PR 57: Notification Log Model ────────────────────────────────────────
+    {
+        "branch": "feat/notifications-log-model",
+        "commit": "feat(notifications): implement NotificationLog ORM model with recipient and status tracking",
+        "title": "feat(notifications): implement NotificationLog ORM model with recipient and status tracking",
+        "file": "domains/notifications/models.py",
+        "content": '''\
+"""Notification Log ORM model for outbound messaging audit trail.
+
+Adheres to Constitution §21 (Notifications Engine) and §23 (Audit Trail).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from domains.notifications.enums import (
+    NotificationChannel,
+    NotificationDeliveryStatus,
+    NotificationPriority,
+)
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class NotificationLog(TimestampedUUIDModel):
+    """Records an outbound notification event across any communication channel."""
+
+    __tablename__ = "notification_logs"
+
+    recipient_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    channel: Mapped[NotificationChannel] = mapped_column(
+        SQLEnum(NotificationChannel, native_enum=False),
+        nullable=False,
+    )
+    priority: Mapped[NotificationPriority] = mapped_column(
+        SQLEnum(NotificationPriority, native_enum=False),
+        default=NotificationPriority.NORMAL,
+        nullable=False,
+    )
+    status: Mapped[NotificationDeliveryStatus] = mapped_column(
+        SQLEnum(NotificationDeliveryStatus, native_enum=False),
+        default=NotificationDeliveryStatus.QUEUED,
+        nullable=False,
+    )
+    recipient_address: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="Destination email address or E.164 phone number.",
+    )
+    subject: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    __table_args__ = (
+        Index("ix_notification_logs_recipient", "recipient_user_id"),
+        Index("ix_notification_logs_status", "status"),
+    )
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nImplements NotificationLog model recording all outbound messages with delivery timestamps.\\n\\n## Why\\nConstitution §21 and §23 require auditability of all patient and clinical communications.\\n\\n## Testing\\nModel fields and indexes reviewed.",
+    },
+    # ── PR 58: Notification Template Model ───────────────────────────────────
+    {
+        "branch": "feat/notifications-template-model",
+        "commit": "feat(notifications): implement NotificationTemplate ORM model for parameterized templates",
+        "title": "feat(notifications): implement NotificationTemplate ORM model for parameterized templates",
+        "file": "domains/notifications/template.py",
+        "content": '''\
+"""Notification Template domain model.
+
+Adheres to Constitution §21 (Notifications Engine — Reusable Templates).
+"""
+from __future__ import annotations
+
+from sqlalchemy import Boolean, Index, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from domains.notifications.enums import NotificationChannel
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class NotificationTemplate(TimestampedUUIDModel):
+    """Reusable parameterized message template for automated notifications."""
+
+    __tablename__ = "notification_templates"
+
+    template_code: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    channel: Mapped[NotificationChannel] = mapped_column(
+        SQLEnum(NotificationChannel, native_enum=False),
+        nullable=False,
+    )
+    subject_template: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    body_template: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_notification_templates_code", "template_code"),
+    )
+''',
+        "reviewer": "@Mailakhan67",
+        "body": "## Summary\\nAdds NotificationTemplate model supporting variable interpolation for automated notifications.\\n\\n## Why\\nConstitution §21 requires standard reusable notification templates.\\n\\n## Testing\\nModel fields and unique constraints verified.",
+    },
+    # ── PR 59: Audit Domain Init ─────────────────────────────────────────────
+    {
+        "branch": "feat/audit-domain-init",
+        "commit": "feat(audit): initialize audit trail domain package structure",
+        "title": "feat(audit): initialize audit trail domain package structure",
+        "file": "domains/audit/__init__.py",
+        "content": '''\
+"""OmniCare HIPAA-Compliant Security & Audit Trail Domain.
+
+Adheres to Constitution §23 (Audit Trail & Observability) and §26 (HIPAA Security).
+"""
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nInitializes audit domain package structure.\\n\\n## Why\\nConstitution §23 and §26 require dedicated immutable audit log subsystem.\\n\\n## Testing\\nPackage import verified.",
+    },
+    # ── PR 60: Audit Enums ───────────────────────────────────────────────────
+    {
+        "branch": "feat/audit-action-and-risk-enums",
+        "commit": "feat(audit): add AuditAction, EntityType, and SecurityRiskLevel enums",
+        "title": "feat(audit): add AuditAction, EntityType, and SecurityRiskLevel enums",
+        "file": "domains/audit/enums.py",
+        "content": '''\
+"""Audit domain enums for security event tracking, actions, and risk classification.
+
+Adheres to Constitution §23 (Audit Trail) and §26 (HIPAA Compliance).
+"""
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class AuditAction(StrEnum):
+    """Action performed on protected health information or system resources."""
+
+    CREATE = "create"
+    READ = "read"
+    UPDATE = "update"
+    DELETE = "delete"
+    LOGIN_SUCCESS = "login_success"
+    LOGIN_FAILED = "login_failed"
+    PASSWORD_CHANGE = "password_change"
+    EXPORT = "export"
+    DISCLOSURE = "disclosure"
+
+
+class EntityType(StrEnum):
+    """Type of entity accessed or modified."""
+
+    PATIENT = "patient"
+    CLINICAL_NOTE = "clinical_note"
+    PRESCRIPTION = "prescription"
+    LAB_RESULT = "lab_result"
+    INVOICE = "invoice"
+    USER = "user"
+    TELEHEALTH_SESSION = "telehealth_session"
+
+
+class SecurityRiskLevel(StrEnum):
+    """Assessed security risk level of the logged action."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nAdds AuditAction, EntityType, and SecurityRiskLevel enums for HIPAA audit logging.\\n\\n## Why\\nConstitution §23 mandates granular action and entity classification for all access events.\\n\\n## Testing\\nEnum values verified against HIPAA audit standards.",
     },
 ]
 
@@ -729,6 +579,11 @@ def create_pr(pr: dict, pr_number: int) -> bool:
     """Executes the full PR lifecycle for a single PR definition."""
     branch = pr["branch"]
     print(f"\n[PR #{pr_number}] Starting: {pr['title']}")
+
+    # Clean index lock if present
+    lock_file = ROOT / ".git" / "index.lock"
+    if lock_file.exists():
+        lock_file.unlink()
 
     # 1. Checkout fresh branch from updated main
     code, out = run(f"git checkout main && git pull origin main && git checkout -b {branch}")
@@ -801,8 +656,8 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="OmniCare batch PR creator v3")
-    parser.add_argument("--start", type=int, default=36, help="Starting PR number label")
+    parser = argparse.ArgumentParser(description="OmniCare batch PR creator v4")
+    parser.add_argument("--start", type=int, default=50, help="Starting PR number label")
     parser.add_argument("--count", type=int, default=len(PR_CATALOG))
     args = parser.parse_args()
 
@@ -811,7 +666,7 @@ def main() -> int:
     failed = 0
 
     print(f"\n{'=' * 60}")
-    print(f"OmniCare Batch PR Creator v3 — Starting from PR #{args.start}")
+    print(f"OmniCare Batch PR Creator v4 — Starting from PR #{args.start}")
     print(f"Creating {total} PRs")
     print(f"{'=' * 60}")
 
