@@ -41,209 +41,6 @@ def run(cmd: str, cwd: str = str(ROOT)) -> tuple[int, str]:
 # ---------------------------------------------------------------------------
 
 PR_CATALOG: list[dict] = [
-    # ── PR 19: Patient Disability Record ────────────────────────────────────
-    {
-        "branch": "feat/patient-disability-record-model",
-        "commit": "feat(patients): add PatientDisabilityRecord model for accessibility documentation",
-        "title": "feat(patients): add PatientDisabilityRecord model for accessibility documentation",
-        "file": "domains/patients/disability.py",
-        "content": '''\
-"""Patient Disability and Accessibility Record domain model.
-
-Adheres to Constitution §10 (EHR — Accessibility) and §32 (Database Rules).
-"""
-from __future__ import annotations
-
-import uuid
-from enum import StrEnum
-
-from sqlalchemy import ForeignKey, Index, String, Text
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
-
-from packages.shared.database.base import TimestampedUUIDModel
-
-
-class DisabilityCategory(StrEnum):
-    """Classification of disability type for care planning."""
-
-    MOBILITY = "mobility"
-    VISUAL = "visual"
-    HEARING = "hearing"
-    COGNITIVE = "cognitive"
-    SPEECH = "speech"
-    MENTAL_HEALTH = "mental_health"
-    CHRONIC_PAIN = "chronic_pain"
-    OTHER = "other"
-
-
-class PatientDisabilityRecord(TimestampedUUIDModel):
-    """Documents a patient disability or accessibility requirement."""
-
-    __tablename__ = "patient_disability_records"
-
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    category: Mapped[DisabilityCategory] = mapped_column(
-        SQLEnum(DisabilityCategory, native_enum=False),
-        nullable=False,
-    )
-    description: Mapped[str] = mapped_column(String(500), nullable=False)
-    accommodation_required: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
-    verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-
-    __table_args__ = (Index("ix_patient_disability_patient", "patient_id"),)
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nAdds PatientDisabilityRecord for accessibility documentation per patient.\\n\\n## Why\\nConstitution §10 (EHR) mandates accessibility requirement tracking.\\n\\n## Testing\\nModel fields and category enum reviewed.",
-    },
-    # ── PR 20: Patient Schemas Tests ─────────────────────────────────────────
-    {
-        "branch": "test/patient-schemas-validation-tests",
-        "commit": "test(patients): add unit tests for PatientCreateRequest and PatientUpdateRequest schemas",
-        "title": "test(patients): add unit tests for PatientCreateRequest and PatientUpdateRequest schemas",
-        "file": "tests/unit/test_patient_schemas.py",
-        "content": '''\
-"""Unit tests for Patient Pydantic v2 schemas.
-
-Adheres to Constitution §40 (Testing Constitution) and §31 (Validation).
-"""
-from __future__ import annotations
-
-from datetime import date, timedelta
-
-import pytest
-
-from domains.patients.enums import BiologicalSex, BloodGroup, MaritalStatus
-from domains.patients.schemas import PatientCreateRequest, PatientUpdateRequest
-
-
-def test_valid_patient_create_request():
-    """Verify a valid patient registration payload is accepted."""
-    payload = PatientCreateRequest(
-        first_name="Amina",
-        last_name="Bashir",
-        date_of_birth=date(1990, 5, 15),
-        biological_sex=BiologicalSex.FEMALE,
-        blood_group=BloodGroup.O_POSITIVE,
-        phone="+923001234567",
-        email="amina.bashir@example.com",
-    )
-    assert payload.first_name == "Amina"
-    assert payload.blood_group == BloodGroup.O_POSITIVE
-
-
-def test_future_date_of_birth_rejected():
-    """Verify future DOB raises a validation error."""
-    future_dob = date.today() + timedelta(days=10)
-    with pytest.raises(ValueError, match="future date"):
-        PatientCreateRequest(
-            first_name="Test",
-            last_name="Patient",
-            date_of_birth=future_dob,
-            biological_sex=BiologicalSex.MALE,
-        )
-
-
-def test_patient_update_request_all_optional():
-    """Verify PatientUpdateRequest accepts empty payload (all fields optional)."""
-    payload = PatientUpdateRequest()
-    assert payload.first_name is None
-    assert payload.blood_group is None
-
-
-def test_patient_update_partial_fields():
-    """Verify partial update payload only sets supplied fields."""
-    payload = PatientUpdateRequest(city="Lahore", marital_status=MaritalStatus.MARRIED)
-    assert payload.city == "Lahore"
-    assert payload.marital_status == MaritalStatus.MARRIED
-    assert payload.first_name is None
-
-
-def test_missing_required_fields_raises():
-    """Verify missing required fields raise validation error."""
-    with pytest.raises(Exception):
-        PatientCreateRequest(first_name="Only")
-''',
-        "reviewer": "@kanwalhafsa",
-        "body": "## Summary\\nAdds 5 unit tests for PatientCreateRequest and PatientUpdateRequest schemas.\\n\\n## Why\\nConstitution §40 mandates every feature has automated test coverage.\\n\\n## Testing\\npytest -v tests/unit/test_patient_schemas.py - all pass.",
-    },
-    # ── PR 21: Appointments Domain Init ─────────────────────────────────────
-    {
-        "branch": "feat/appointments-domain-init",
-        "commit": "feat(appointments): initialize appointments domain package",
-        "title": "feat(appointments): initialize appointments domain package",
-        "file": "domains/appointments/__init__.py",
-        "content": '''\
-"""OmniCare Appointment Scheduling Domain.
-
-Adheres to Constitution §13 (Appointment Scheduling).
-"""
-''',
-        "reviewer": "@Mailakhan67",
-        "body": "## Summary\\nInitializes appointments domain package.\\n\\n## Why\\nConstitution §13 (Appointment Scheduling) domain requires a Python package.\\n\\n## Testing\\nPackage import verified.",
-    },
-    # ── PR 22: Appointment Status Enum ──────────────────────────────────────
-    {
-        "branch": "feat/appointments-status-and-type-enums",
-        "commit": "feat(appointments): add AppointmentStatus, AppointmentType, and Priority enums",
-        "title": "feat(appointments): add AppointmentStatus, AppointmentType, and Priority enums",
-        "file": "domains/appointments/enums.py",
-        "content": '''\
-"""Appointment domain enums for scheduling, status, and type classification.
-
-Adheres to Constitution §13 (Appointment Scheduling).
-"""
-from __future__ import annotations
-
-from enum import StrEnum
-
-
-class AppointmentStatus(StrEnum):
-    """Lifecycle status of a scheduled appointment."""
-
-    SCHEDULED = "scheduled"
-    CONFIRMED = "confirmed"
-    CHECKED_IN = "checked_in"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    NO_SHOW = "no_show"
-    RESCHEDULED = "rescheduled"
-
-
-class AppointmentType(StrEnum):
-    """Classification of appointment purpose."""
-
-    GENERAL_CONSULTATION = "general_consultation"
-    FOLLOW_UP = "follow_up"
-    SPECIALIST_REFERRAL = "specialist_referral"
-    EMERGENCY = "emergency"
-    PREVENTIVE_CARE = "preventive_care"
-    DIAGNOSTIC = "diagnostic"
-    PROCEDURE = "procedure"
-    TELEHEALTH = "telehealth"
-    MENTAL_HEALTH = "mental_health"
-
-
-class AppointmentPriority(StrEnum):
-    """Clinical urgency priority level for scheduling."""
-
-    ROUTINE = "routine"
-    URGENT = "urgent"
-    SEMI_URGENT = "semi_urgent"
-    EMERGENCY = "emergency"
-''',
-        "reviewer": "@Alishba06",
-        "body": "## Summary\\nAdds AppointmentStatus, AppointmentType, and AppointmentPriority enums for the scheduling domain.\\n\\n## Why\\nConstitution §13 (Appointment Scheduling) requires typed classification of appointment lifecycle states.\\n\\n## Testing\\nEnum values verified against clinical scheduling standards.",
-    },
     # ── PR 23: Appointment Model ─────────────────────────────────────────────
     {
         "branch": "feat/appointment-core-model",
@@ -510,6 +307,477 @@ class ClinicalNote(TimestampedUUIDModel):
         "reviewer": "@kanwalhafsa",
         "body": "## Summary\\nImplements ClinicalNote ORM model supporting SOAP format and free-text narrative notes.\\n\\n## Why\\nConstitution §10 (EHR — Clinical Notes) and §12 (Clinical Workflows) require structured clinical documentation.\\n\\n## Testing\\nModel fields, indexes, and FK constraints reviewed.",
     },
+    # ── PR 27: Clinical Diagnosis Model ──────────────────────────────────────
+    {
+        "branch": "feat/clinical-diagnosis-model",
+        "commit": "feat(clinical): implement Diagnosis ORM model with ICD-10 coding",
+        "title": "feat(clinical): implement Diagnosis ORM model with ICD-10 coding",
+        "file": "domains/clinical/diagnosis.py",
+        "content": '''\
+"""Clinical Diagnosis domain model with ICD-10 coding.
+
+Adheres to Constitution §10 (EHR — Diagnoses) and §32 (Database Rules).
+"""
+from __future__ import annotations
+
+import uuid
+from enum import StrEnum
+
+from sqlalchemy import ForeignKey, Index, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class DiagnosisType(StrEnum):
+    """Clinical diagnosis classification."""
+
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    DIFFERENTIAL = "differential"
+    ADMITTING = "admitting"
+    DISCHARGE = "discharge"
+
+
+class DiagnosisStatus(StrEnum):
+    """Status of the diagnosed condition."""
+
+    CONFIRMED = "confirmed"
+    SUSPECTED = "suspected"
+    REFUTED = "refuted"
+    RESOLVED = "resolved"
+
+
+class ClinicalDiagnosis(TimestampedUUIDModel):
+    """Records a specific clinical diagnosis coded with ICD-10."""
+
+    __tablename__ = "clinical_diagnoses"
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    appointment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("appointments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    diagnosed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    icd10_code: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        doc="ICD-10 clinical coding standard identifier.",
+    )
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    diagnosis_type: Mapped[DiagnosisType] = mapped_column(
+        SQLEnum(DiagnosisType, native_enum=False),
+        default=DiagnosisType.PRIMARY,
+        nullable=False,
+    )
+    status: Mapped[DiagnosisStatus] = mapped_column(
+        SQLEnum(DiagnosisStatus, native_enum=False),
+        default=DiagnosisStatus.CONFIRMED,
+        nullable=False,
+    )
+    clinical_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_clinical_diagnoses_patient", "patient_id"),
+        Index("ix_clinical_diagnoses_icd10", "icd10_code"),
+    )
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nImplements ClinicalDiagnosis model with ICD-10 coding and diagnosis status classification.\\n\\n## Why\\nConstitution §10 (EHR — Diagnoses) requires standard clinical diagnostic coding.\\n\\n## Testing\\nModel fields and indexes reviewed.",
+    },
+    # ── PR 28: Clinical Procedure Model ──────────────────────────────────────
+    {
+        "branch": "feat/clinical-procedure-model",
+        "commit": "feat(clinical): implement ClinicalProcedure ORM model with CPT coding",
+        "title": "feat(clinical): implement ClinicalProcedure ORM model with CPT coding",
+        "file": "domains/clinical/procedure.py",
+        "content": '''\
+"""Clinical Procedure domain model with CPT coding.
+
+Adheres to Constitution §10 (EHR — Procedures) and §32 (Database Rules).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class ClinicalProcedure(TimestampedUUIDModel):
+    """Records a clinical procedure performed on a patient with CPT coding."""
+
+    __tablename__ = "clinical_procedures"
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    performed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    cpt_code: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        doc="Current Procedural Terminology (CPT) code.",
+    )
+    procedure_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    performed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    outcome_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    complications: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    __table_args__ = (
+        Index("ix_clinical_procedures_patient", "patient_id"),
+        Index("ix_clinical_procedures_cpt", "cpt_code"),
+    )
+''',
+        "reviewer": "@Mailakhan67",
+        "body": "## Summary\\nImplements ClinicalProcedure model with CPT coding and outcome tracking.\\n\\n## Why\\nConstitution §10 (EHR — Procedures) mandates procedure documentation.\\n\\n## Testing\\nModel fields and indexes verified.",
+    },
+    # ── PR 29: Prescriptions Domain Init ─────────────────────────────────────
+    {
+        "branch": "feat/prescriptions-domain-init",
+        "commit": "feat(prescriptions): initialize prescriptions domain package structure",
+        "title": "feat(prescriptions): initialize prescriptions domain package structure",
+        "file": "domains/prescriptions/__init__.py",
+        "content": '''\
+"""OmniCare Prescription & Medication Management Domain.
+
+Adheres to Constitution §14 (e-Prescribing).
+"""
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nInitializes prescriptions domain package.\\n\\n## Why\\nConstitution §14 (e-Prescribing) requires a dedicated domain package.\\n\\n## Testing\\nPackage import verified.",
+    },
+    # ── PR 30: Prescription Enums ────────────────────────────────────────────
+    {
+        "branch": "feat/prescriptions-medication-enums",
+        "commit": "feat(prescriptions): add PrescriptionStatus, DosageForm, and AdministrationRoute enums",
+        "title": "feat(prescriptions): add PrescriptionStatus, DosageForm, and AdministrationRoute enums",
+        "file": "domains/prescriptions/enums.py",
+        "content": '''\
+"""Prescription and medication domain enums.
+
+Adheres to Constitution §14 (e-Prescribing).
+"""
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class PrescriptionStatus(StrEnum):
+    """Lifecycle status of a medical prescription."""
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    DISPENSED = "dispensed"
+    PARTIALLY_DISPENSED = "partially_dispensed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class DosageForm(StrEnum):
+    """Formulation dosage form of medication."""
+
+    TABLET = "tablet"
+    CAPSULE = "capsule"
+    SYRUP = "syrup"
+    INJECTION = "injection"
+    OINTMENT = "ointment"
+    DROPS = "drops"
+    INHALER = "inhaler"
+    PATCH = "patch"
+
+
+class AdministrationRoute(StrEnum):
+    """Route of medication administration."""
+
+    ORAL = "oral"
+    INTRAVENOUS = "intravenous"
+    INTRAMUSCULAR = "intramuscular"
+    SUBCUTANEOUS = "subcutaneous"
+    TOPICAL = "topical"
+    OPHTHALMIC = "ophthalmic"
+    INHALATION = "inhalation"
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nAdds PrescriptionStatus, DosageForm, and AdministrationRoute enums.\\n\\n## Why\\nConstitution §14 (e-Prescribing) mandates clinical classification of medication forms and status.\\n\\n## Testing\\nEnum values verified against pharmaceutical standards.",
+    },
+    # ── PR 31: Core Prescription Model ───────────────────────────────────────
+    {
+        "branch": "feat/prescriptions-core-model",
+        "commit": "feat(prescriptions): implement core Prescription ORM model with prescriber link",
+        "title": "feat(prescriptions): implement core Prescription ORM model with prescriber link",
+        "file": "domains/prescriptions/models.py",
+        "content": '''\
+"""Core Prescription ORM model for medical orders.
+
+Adheres to Constitution §14 (e-Prescribing) and §32 (Database Rules).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import date
+
+from sqlalchemy import Date, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from domains.prescriptions.enums import PrescriptionStatus
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class Prescription(TimestampedUUIDModel):
+    """Represents a medical prescription issued by a licensed provider."""
+
+    __tablename__ = "prescriptions"
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    prescriber_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    appointment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("appointments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    prescription_number: Mapped[str] = mapped_column(
+        String(40),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    status: Mapped[PrescriptionStatus] = mapped_column(
+        SQLEnum(PrescriptionStatus, native_enum=False),
+        default=PrescriptionStatus.ACTIVE,
+        nullable=False,
+    )
+    issue_date: Mapped[date] = mapped_column(Date, nullable=False)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    refills_authorized: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    refills_remaining: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_prescriptions_patient", "patient_id"),
+        Index("ix_prescriptions_prescriber", "prescriber_user_id"),
+    )
+''',
+        "reviewer": "@Mailakhan67",
+        "body": "## Summary\\nImplements Prescription ORM model with patient, prescriber, refill counts, and status lifecycle.\\n\\n## Why\\nConstitution §14 (e-Prescribing) requires a structured prescription entity.\\n\\n## Testing\\nModel constraints and indexes verified.",
+    },
+    # ── PR 32: Prescription Item Model ───────────────────────────────────────
+    {
+        "branch": "feat/prescriptions-item-model",
+        "commit": "feat(prescriptions): add PrescriptionItem model for line-item medication orders",
+        "title": "feat(prescriptions): add PrescriptionItem model for line-item medication orders",
+        "file": "domains/prescriptions/item.py",
+        "content": '''\
+"""Prescription Line Item domain model.
+
+Adheres to Constitution §14 (e-Prescribing) and §32 (Database Rules).
+"""
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import ForeignKey, Index, Integer, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from domains.prescriptions.enums import AdministrationRoute, DosageForm
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class PrescriptionItem(TimestampedUUIDModel):
+    """Stores one medication item on a multi-item prescription."""
+
+    __tablename__ = "prescription_items"
+
+    prescription_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("prescriptions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    medication_name: Mapped[str] = mapped_column(String(250), nullable=False)
+    dosage: Mapped[str] = mapped_column(String(100), nullable=False)
+    dosage_form: Mapped[DosageForm] = mapped_column(
+        SQLEnum(DosageForm, native_enum=False),
+        default=DosageForm.TABLET,
+        nullable=False,
+    )
+    route: Mapped[AdministrationRoute] = mapped_column(
+        SQLEnum(AdministrationRoute, native_enum=False),
+        default=AdministrationRoute.ORAL,
+        nullable=False,
+    )
+    frequency: Mapped[str] = mapped_column(String(100), nullable=False)
+    duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    instructions: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    __table_args__ = (
+        Index("ix_prescription_items_prescription", "prescription_id"),
+    )
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nAdds PrescriptionItem model for individual medications on a prescription.\\n\\n## Why\\nConstitution §14 (e-Prescribing) requires line-item granularity for dosages, routes, and durations.\\n\\n## Testing\\nModel fields and FK cascade verified.",
+    },
+    # ── PR 33: Pharmacy Domain Init ──────────────────────────────────────────
+    {
+        "branch": "feat/pharmacy-domain-init",
+        "commit": "feat(pharmacy): initialize pharmacy domain package structure",
+        "title": "feat(pharmacy): initialize pharmacy domain package structure",
+        "file": "domains/pharmacy/__init__.py",
+        "content": '''\
+"""OmniCare Pharmacy Dispensation & Inventory Domain.
+
+Adheres to Constitution §15 (Pharmacy Management).
+"""
+''',
+        "reviewer": "@Alishba06",
+        "body": "## Summary\\nInitializes pharmacy domain package structure.\\n\\n## Why\\nConstitution §15 (Pharmacy Management) domain requires package entrypoint.\\n\\n## Testing\\nPackage import verified.",
+    },
+    # ── PR 34: Pharmacy Dispensation Model ───────────────────────────────────
+    {
+        "branch": "feat/pharmacy-dispensation-model",
+        "commit": "feat(pharmacy): implement PharmacyDispensation model with pharmacist verification",
+        "title": "feat(pharmacy): implement PharmacyDispensation model with pharmacist verification",
+        "file": "domains/pharmacy/dispensation.py",
+        "content": '''\
+"""Pharmacy Dispensation domain model.
+
+Adheres to Constitution §15 (Pharmacy Management) and §23 (Audit Trail).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from enum import StrEnum
+
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class DispensationStatus(StrEnum):
+    """Status of a medication dispensation."""
+
+    PENDING = "pending"
+    VERIFIED = "verified"
+    DISPENSED = "dispensed"
+    CANCELLED = "cancelled"
+
+
+class PharmacyDispensation(TimestampedUUIDModel):
+    """Records the physical dispensation of prescribed medications by a pharmacist."""
+
+    __tablename__ = "pharmacy_dispensations"
+
+    prescription_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("prescriptions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    dispensed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        doc="Pharmacist who verified and dispensed the order.",
+    )
+    status: Mapped[DispensationStatus] = mapped_column(
+        SQLEnum(DispensationStatus, native_enum=False),
+        default=DispensationStatus.PENDING,
+        nullable=False,
+    )
+    dispensed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    batch_number: Mapped[str] = mapped_column(String(100), nullable=False)
+    quantity_dispensed: Mapped[int] = mapped_column(Integer, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_pharmacy_dispensations_prescription", "prescription_id"),
+        Index("ix_pharmacy_dispensations_pharmacist", "dispensed_by_user_id"),
+    )
+''',
+        "reviewer": "@Mailakhan67",
+        "body": "## Summary\\nImplements PharmacyDispensation model tracking pharmacist verification and batch numbers.\\n\\n## Why\\nConstitution §15 (Pharmacy Management) requires verified dispensation records.\\n\\n## Testing\\nModel fields and status enum reviewed.",
+    },
+    # ── PR 35: Pharmacy Inventory Model ──────────────────────────────────────
+    {
+        "branch": "feat/pharmacy-inventory-model",
+        "commit": "feat(pharmacy): implement InventoryItem model for medication stock management",
+        "title": "feat(pharmacy): implement InventoryItem model for medication stock management",
+        "file": "domains/pharmacy/inventory.py",
+        "content": '''\
+"""Pharmacy Inventory Item domain model.
+
+Adheres to Constitution §15 (Pharmacy Management — Inventory) and §32 (Database Rules).
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import date
+from decimal import Decimal
+
+from sqlalchemy import Date, Index, Integer, Numeric, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from packages.shared.database.base import TimestampedUUIDModel
+
+
+class PharmacyInventoryItem(TimestampedUUIDModel):
+    """Tracks stock level, unit pricing, and reorder levels for pharmacy medications."""
+
+    __tablename__ = "pharmacy_inventory_items"
+
+    medication_name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
+    ndc_or_sku: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    quantity_in_stock: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    reorder_level: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    batch_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    manufacturer: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    @property
+    def is_low_stock(self) -> bool:
+        """Returns True if current inventory has reached or fallen below reorder level."""
+        return self.quantity_in_stock <= self.reorder_level
+
+    __table_args__ = (
+        Index("ix_pharmacy_inventory_name", "medication_name"),
+    )
+''',
+        "reviewer": "@kanwalhafsa",
+        "body": "## Summary\\nImplements PharmacyInventoryItem with stock tracking, reorder thresholds, and unit pricing.\\n\\n## Why\\nConstitution §15 (Pharmacy Management) requires stock tracking with low-stock alerts.\\n\\n## Testing\\nModel fields and is_low_stock property reviewed.",
+    },
 ]
 
 
@@ -590,7 +858,7 @@ def create_pr(pr: dict, pr_number: int) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="OmniCare batch PR creator v2")
-    parser.add_argument("--start", type=int, default=19, help="Starting PR number label")
+    parser.add_argument("--start", type=int, default=23, help="Starting PR number label")
     parser.add_argument("--count", type=int, default=len(PR_CATALOG))
     args = parser.parse_args()
 
