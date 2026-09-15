@@ -922,14 +922,21 @@ def create_pr(pr: dict, pr_number: int) -> bool:
     pr_url = out.strip().split("\n")[-1]
     gh_pr_num = pr_url.split("/")[-1]
 
-    # 8. Add review comment
+    # 8. Watch CI checks until completely GREEN pass (2/2)
+    print(f"  Watching CI checks for PR #{gh_pr_num}...")
+    code, out = run(f"gh pr checks {gh_pr_num} --watch")
+    if code != 0:
+        print(f"  ERROR: CI checks failed for PR #{gh_pr_num}: {out[-300:]}")
+        return False
+
+    # 9. Add review comment
     run(
         f"gh pr comment {gh_pr_num} --body "
         f'"Reviewed and approved by {pr["reviewer"]}: LGTM! '
         f'Code follows OmniCare Constitution standards, ruff passes, all tests green."'
     )
 
-    # 9. Merge
+    # 10. Merge
     code, out = run(f"gh pr merge {gh_pr_num} --merge --delete-branch")
     if code != 0:
         print(f"  ERROR merging PR: {out[-300:]}")
