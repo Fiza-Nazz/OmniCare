@@ -29,5 +29,3 @@ class InsurancePayer(TimestampedUUIDModel):
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     claims_portal_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    __table_args__ = (Index("ix_insurance_payers_name", "name"),)
