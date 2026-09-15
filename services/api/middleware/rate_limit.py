@@ -14,8 +14,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 
-class RateLimitExceeded(Exception):
+class RateLimitExceededError(Exception):
     """Raised when a client exceeds the allowed request rate."""
+
+
+RateLimitExceeded = RateLimitExceededError
 
 
 class SlidingWindowRateLimiter:
